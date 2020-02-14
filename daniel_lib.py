@@ -14,16 +14,18 @@ import scipy
 tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
 bert_model = AutoModel.from_pretrained("bert-base-multilingual-cased")
 
+
 def import_file(prefix):
-  with open(f"{prefix}.ende.src", "r", encoding="utf-8") as f:
-    src = [line.strip() for line in f]
-  with open(f"{prefix}.ende.mt", "r", encoding="utf-8") as f:
-    mt = [line.strip() for line in f]
-  scores = None
-  if(prefix!="test"):
-    with open(f"{prefix}.ende.scores", "r", encoding="utf-8") as f:
-      scores = [float(line.strip()) for line in f]
-  return pd.DataFrame({"src":src,"mt":mt, "scores":scores})
+    with open(f"{prefix}.ende.src", "r", encoding="utf-8") as f:
+        src = [line.strip() for line in f]
+    with open(f"{prefix}.ende.mt", "r", encoding="utf-8") as f:
+        mt = [line.strip() for line in f]
+    scores = None
+    if (prefix != "test"):
+        with open(f"{prefix}.ende.scores", "r", encoding="utf-8") as f:
+            scores = [float(line.strip()) for line in f]
+    return pd.DataFrame({"src": src, "mt": mt, "scores": scores})
+
 
 def pad(id_sequences, wiggle_room=0, max_length=None):
     if max_length is None:
@@ -33,32 +35,36 @@ def pad(id_sequences, wiggle_room=0, max_length=None):
         padded_data[i, :len(sample)] = sample
     return padded_data
 
-def get_tokenized(dataframe):
-  input1 = dataframe.apply(lambda a: "[CLS] "  + a.src + " [SEP] "+a.mt+" [SEP]", axis=1)\
-  .apply(lambda a: tokenizer.tokenize(a))\
-  .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
 
-  input2 = dataframe.apply(lambda a: "[CLS] " + a.mt + " [SEP] "+a.src+" [SEP]", axis=1)\
-  .apply(lambda a: tokenizer.tokenize(a))\
-  .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
-  return input1, input2
+def get_tokenized(dataframe):
+    input1 = dataframe.apply(lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1) \
+        .apply(lambda a: tokenizer.tokenize(a)) \
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+
+    input2 = dataframe.apply(lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1) \
+        .apply(lambda a: tokenizer.tokenize(a)) \
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+    return input1, input2
+
 
 def getDataLoader(dataframe, batch_size=32, test=False):
-  input1, input2 = get_tokenized(dataframe)
-  if test:
-    l = list(zip(pad(input1),pad(input2)))
-  else:
-    l = list(zip(pad(input1),pad(input2),dataframe.scores))
+    input1, input2 = get_tokenized(dataframe)
+    if test:
+        l = list(zip(pad(input1), pad(input2)))
+    else:
+        l = list(zip(pad(input1), pad(input2), dataframe.scores))
 
-  return torch.utils.data.DataLoader(l, batch_size=batch_size, shuffle=(not test))
+    return torch.utils.data.DataLoader(l, batch_size=batch_size, shuffle=(not test))
+
 
 def removeOutliers(dataframe, negLimit=-3, posLimit=2):
-  dataframe.loc[dataframe.scores<negLimit,"scores"] = negLimit
-  dataframe.loc[dataframe.scores>posLimit,"scores"] = posLimit
-  return dataframe
+    dataframe.loc[dataframe.scores < negLimit, "scores"] = negLimit
+    dataframe.loc[dataframe.scores > posLimit, "scores"] = posLimit
+    return dataframe
+
 
 from IPython.display import HTML, display
-import time
+
 
 def progress(value, max=100):
     return HTML("""
@@ -82,7 +88,7 @@ def get_sentence_embeddings(dataframe, bert_model, device, test=False, batch_siz
     bert_model.to(device=device)
 
     l = []
-    z = len(list(loader));
+    z = len(list(loader))
 
     progress_bar = display(progress(0, z), display_id=True)
 
@@ -102,18 +108,20 @@ def get_sentence_embeddings(dataframe, bert_model, device, test=False, batch_siz
         l = list(zip(l, dataframe.scores))
     return torch.utils.data.DataLoader(l, batch_size=batch_size, shuffle=(not test))
 
+
 def augment_dataset(original, *score_lambdas):
     to_concat = [original]
     for i in score_lambdas:
-        to_concat+= [original[i(original.scores)]]
+        to_concat += [original[i(original.scores)]]
     return pd.concat(to_concat)
+
 
 class BERThoven(nn.Module):
     def __init__(self, bert_model, sum_outputs=False, concat_outputs=False):
         super(BERThoven, self).__init__()
 
         if sum_outputs and concat_outputs:
-            raise RuntimeError("You can't both sum and concatenate outputs.");
+            raise RuntimeError("You can't both sum and concatenate outputs.")
 
         self.bert_layers = bert_model
         bert_out_features = self.bert_layers.pooler.dense.out_features
@@ -128,7 +136,6 @@ class BERThoven(nn.Module):
         self.sum_outputs = sum_outputs
         self.concat_outputs = concat_outputs
 
-
     def forward(self, x1, x2):
         # The 1 index is for the pooled head
         out1a = self.bert_layers(x1)[1]
@@ -137,7 +144,7 @@ class BERThoven(nn.Module):
         else:
             out1b = self.bert_layers(x2)[1]
             if self.concat_outputs:
-                out1x = torch.cat((out1a,out1b),1)
+                out1x = torch.cat((out1a, out1b), 1)
             else:
                 out1x = out1a + out1b
 
@@ -170,7 +177,7 @@ def check_accuracy(loader, model, device, max_sample_size=None):
             sqr_error += ((scores - y) ** 2).sum()
             num_samples += scores.size(0)
             if (max_sample_size != None and num_samples >= num_samples):
-                break;
+                break
         mse = sqr_error / num_samples
         mae = abs_error / num_samples
         pr, _ = scipy.stats.pearsonr(scores_epoch, truth_epoch)
@@ -226,7 +233,7 @@ def train_part(model, dataloader, optimizer, scheduler, val_loader, device,
         print()
         print("Avg loss %.3f" % (avg_loss))
         print("Checking accuracy on dev:")
-        check_accuracy(val_loader, model)
+        check_accuracy(val_loader, model, device=device)
         # print("Saving the model.")
         # torch.save(model.state_dict(), 'nlp_model.pt')
 
@@ -243,6 +250,6 @@ def get_test_labels(loader, model, device):
         for x1, x2 in loader:
             x1 = x1.to(device=device, dtype=torch.long)
             x2 = x2.to(device=device, dtype=torch.long)
-            scores = model.forward(x1,x2)
+            scores = model.forward(x1, x2)
             all_scores += [i.item() for i in scores]
     return all_scores

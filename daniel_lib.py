@@ -14,9 +14,6 @@ import scipy
 tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
 bert_model = AutoModel.from_pretrained("bert-base-multilingual-cased")
 
-def set_device(_device):
-    device = _device
-
 def import_file(prefix):
   with open(f"{prefix}.ende.src", "r", encoding="utf-8") as f:
     src = [line.strip() for line in f]
@@ -75,7 +72,7 @@ def progress(value, max=100):
     """.format(value=value, max=max))
 
 
-def get_sentence_embeddings(dataframe, bert_model, test=False, batch_size=32):
+def get_sentence_embeddings(dataframe, bert_model, device, test=False, batch_size=32):
     print("Tokenizing data...")
     input1, input2 = get_tokenized(dataframe)
 
@@ -133,12 +130,12 @@ class BERThoven(nn.Module):
         # out1x = torch.cat((out1a,out1b),1)
         out1x = out1a  # + out1b
 
-        out2 = self.droupout_layer(out1x);
+        out2 = self.droupout_layer(out1x)
         out3 = self.lin_layer(out2)
         return out3.squeeze()
 
 
-def check_accuracy(loader, model, max_sample_size=None):
+def check_accuracy(loader, model, device, max_sample_size=None):
     model = model.to(device=device)
     num_correct = 0
     num_samples = 0
@@ -170,7 +167,7 @@ def check_accuracy(loader, model, max_sample_size=None):
         print('Mean Absolute Error: %.3f, Mean Squared Error %.3f, Pearson: %.3f' % (mse, mae, pr))
 
 
-def train_part(model, dataloader, optimizer, scheduler,
+def train_part(model, dataloader, optimizer, scheduler, device,
                epochs=1, max_grad_norm=1.0, print_every=75,
                loss_function=F.mse_loss):
     # see F.smooth_l1_loss
@@ -223,7 +220,7 @@ def train_part(model, dataloader, optimizer, scheduler,
         # torch.save(model.state_dict(), 'nlp_model.pt')
 
 
-def get_test_labels(loader, model):
+def get_test_labels(loader, model, device):
     model = model.to(device=device)
     num_correct = 0
     num_samples = 0

@@ -108,27 +108,38 @@ def augment_dataset(original, *score_lambdas):
         to_concat+= [original[i(original.scores)]]
     return pd.concat(to_concat)
 
-
 class BERThoven(nn.Module):
-    def __init__(self, bert_model):
+    def __init__(self, bert_model, sum_outputs=False, concat_outputs=False):
         super(BERThoven, self).__init__()
+
+        if sum_outputs and concat_outputs:
+            raise RuntimeError("You can't both sum and concatenate outputs.");
+
         self.bert_layers = bert_model
         bert_out_features = self.bert_layers.pooler.dense.out_features
-        # self.lin_layer = nn.Linear(bert_out_features*2, 1)
-        self.lin_layer = nn.Linear(bert_out_features, 1)
+        if concat_outputs:
+            self.lin_layer = nn.Linear(bert_out_features * 2, 1)
+        else:
+            self.lin_layer = nn.Linear(bert_out_features, 1)
 
         self.droupout_layer = nn.Dropout(p=0.5)
 
+        self.both_ways = sum_outputs or concat_outputs
+        self.sum_outputs = sum_outputs
+        self.concat_outputs = concat_outputs
+
+
     def forward(self, x1, x2):
-        #        self.bert_layers.eval()
-        #        with torch.no_grad():
+        # The 1 index is for the pooled head
         out1a = self.bert_layers(x1)[1]
-        # out1b = self.bert_layers(x2)[1]
-
-        # Using position 1 for the pooled head
-
-        # out1x = torch.cat((out1a,out1b),1)
-        out1x = out1a  # + out1b
+        if not self.both_ways:
+            out1x = out1a
+        else:
+            out1b = self.bert_layers(x2)[1]
+            if self.concat_outputs:
+                out1x = torch.cat((out1a,out1b),1)
+            else:
+                out1x = out1a + out1b
 
         out2 = self.droupout_layer(out1x)
         out3 = self.lin_layer(out2)
@@ -167,7 +178,7 @@ def check_accuracy(loader, model, device, max_sample_size=None):
         print('Mean Absolute Error: %.3f, Mean Squared Error %.3f, Pearson: %.3f' % (mse, mae, pr))
 
 
-def train_part(model, dataloader, optimizer, scheduler, device,
+def train_part(model, dataloader, optimizer, scheduler, val_loader, device,
                epochs=1, max_grad_norm=1.0, print_every=75,
                loss_function=F.mse_loss):
     # see F.smooth_l1_loss
@@ -215,7 +226,7 @@ def train_part(model, dataloader, optimizer, scheduler, device,
         print()
         print("Avg loss %.3f" % (avg_loss))
         print("Checking accuracy on dev:")
-        check_accuracy(dataLoader_dev, model)
+        check_accuracy(val_loader, model)
         # print("Saving the model.")
         # torch.save(model.state_dict(), 'nlp_model.pt')
 

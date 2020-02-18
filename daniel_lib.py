@@ -1,9 +1,4 @@
-from transformers import (BertTokenizer,
-                          BertModel,
-                          AutoTokenizer,
-                          AutoModel,
-                          AdamW,
-                          get_linear_schedule_with_warmup)
+from transformers import BertTokenizer, BertModel, AutoTokenizer, AutoModel, AdamW, get_linear_schedule_with_warmup
 import pandas as pd
 import torch
 from torch import nn
@@ -21,7 +16,7 @@ def import_file(prefix):
     with open(f"{prefix}.ende.mt", "r", encoding="utf-8") as f:
         mt = [line.strip() for line in f]
     scores = None
-    if (prefix != "test"):
+    if prefix != "test":
         with open(f"{prefix}.ende.scores", "r", encoding="utf-8") as f:
             scores = [float(line.strip()) for line in f]
     return pd.DataFrame({"src": src, "mt": mt, "scores": scores})
@@ -32,23 +27,65 @@ def pad(id_sequences, wiggle_room=0, max_length=None):
         max_length = max([len(s) for s in id_sequences]) + wiggle_room
     padded_data = np.zeros((len(id_sequences), max_length))
     for i, sample in enumerate(id_sequences):
-        padded_data[i, :len(sample)] = sample
+        padded_data[i, : len(sample)] = sample
     return padded_data
 
 
-def get_tokenized(dataframe):
-    input1 = dataframe.apply(lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1) \
-        .apply(lambda a: tokenizer.tokenize(a)) \
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+def add_mask(sentence):
+    index_mask = np.random.randint(1, len(sentence) - 1)
+    while sentence[index_mask] == "[SEP]":
+        index_mask = np.random.randint(1, len(sentence) - 1)
 
-    input2 = dataframe.apply(lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1) \
-        .apply(lambda a: tokenizer.tokenize(a)) \
+    sentence[index_mask] = "[MASK]"
+    return sentence
+
+
+def get_tokenized(dataframe):
+    input1 = (
+        dataframe.apply(lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1)
+        .apply(lambda a: tokenizer.tokenize(a))
         .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+    )
+
+    input2 = (
+        dataframe.apply(lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1)
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+    )
+    return input1, input2
+
+
+def get_tokenized_with_mask(dataframe):
+
+    input1 = (
+        dataframe.apply(lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1)
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: add_mask(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+    )
+
+    input2 = (
+        dataframe.apply(lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1)
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: add_mask(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+    )
+
     return input1, input2
 
 
 def getDataLoader(dataframe, batch_size=32, test=False):
     input1, input2 = get_tokenized(dataframe)
+    if test:
+        l = list(zip(pad(input1), pad(input2)))
+    else:
+        l = list(zip(pad(input1), pad(input2), dataframe.scores))
+
+    return torch.utils.data.DataLoader(l, batch_size=batch_size, shuffle=(not test))
+
+
+def getDataLoader_with_mask(dataframe, batch_size=32, test=False):
+    input1, input2 = get_tokenized_with_mask(dataframe)
     if test:
         l = list(zip(pad(input1), pad(input2)))
     else:
@@ -67,7 +104,8 @@ from IPython.display import HTML, display
 
 
 def progress(value, max=100):
-    return HTML("""
+    return HTML(
+        """
         <progress
             value='{value}'
             max='{max}',
@@ -75,7 +113,10 @@ def progress(value, max=100):
         >
             {value}
         </progress>
-    """.format(value=value, max=max))
+    """.format(
+            value=value, max=max
+        )
+    )
 
 
 def get_sentence_embeddings(dataframe, bert_model, device, test=False, batch_size=32):
@@ -100,7 +141,7 @@ def get_sentence_embeddings(dataframe, bert_model, device, test=False, batch_siz
             o2 = bert_model(x2)[1]
 
             out = [(o1[i], o2[i]) for i in range(len(o1))]
-            l += out;
+            l += out
 
             progress_bar.update(progress(i, z))
 
@@ -176,18 +217,27 @@ def check_accuracy(loader, model, device, max_sample_size=None):
             abs_error += (scores - y).abs().sum()
             sqr_error += ((scores - y) ** 2).sum()
             num_samples += scores.size(0)
-            if (max_sample_size != None and num_samples >= num_samples):
+            if max_sample_size != None and num_samples >= num_samples:
                 break
         mse = sqr_error / num_samples
         mae = abs_error / num_samples
         pr, _ = scipy.stats.pearsonr(scores_epoch, truth_epoch)
 
-        print('Mean Absolute Error: %.3f, Mean Squared Error %.3f, Pearson: %.3f' % (mse, mae, pr))
+        print("Mean Absolute Error: %.3f, Mean Squared Error %.3f, Pearson: %.3f" % (mse, mae, pr))
 
 
-def train_part(model, dataloader, optimizer, scheduler, val_loader, device,
-               epochs=1, max_grad_norm=1.0, print_every=75,
-               loss_function=F.mse_loss):
+def train_part(
+    model,
+    dataloader,
+    optimizer,
+    scheduler,
+    val_loader,
+    device,
+    epochs=1,
+    max_grad_norm=1.0,
+    print_every=75,
+    loss_function=F.mse_loss,
+):
     # see F.smooth_l1_loss
 
     avg_loss = 1
@@ -228,7 +278,7 @@ def train_part(model, dataloader, optimizer, scheduler, val_loader, device,
 
             if t % print_every == 0:
                 print()
-                print('Epoch: %d, Iteration %d, loss = %.4f, avg_loss = %.4f' % (e, t, l, avg_loss), end="")
+                print("Epoch: %d, Iteration %d, loss = %.4f, avg_loss = %.4f" % (e, t, l, avg_loss), end="")
             print(".", end="")
         print()
         print("Avg loss %.3f" % (avg_loss))
@@ -244,7 +294,7 @@ def get_test_labels(loader, model, device):
     num_samples = 0
     model.eval()  # set model to evaluation mode
     abs_error = 0
-    sqr_error = 0;
+    sqr_error = 0
     all_scores = []
     with torch.no_grad():
         for x1, x2 in loader:

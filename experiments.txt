@@ -38,3 +38,12 @@ Mean Absolute Error: 0.834, Mean Squared Error 0.552, Pearson: 0.161
 Mean Absolute Error: 0.972, Mean Squared Error 0.637, Pearson: 0.164
 Mean Absolute Error: 0.794, Mean Squared Error 0.537, Pearson: 0.174
 Mean Absolute Error: 0.808, Mean Squared Error 0.542, Pearson: 0.175
+
+constant_schedule_with_warmup
+Mean Absolute Error: 0.898, Mean Squared Error 0.584, Pearson: 0.161
+Mean Absolute Error: 0.792, Mean Squared Error 0.538, Pearson: 0.179
+Mean Absolute Error: 0.774, Mean Squared Error 0.519, Pearson: 0.214
+
+Mean Absolute Error: 0.909, Mean Squared Error 0.590, Pearson: 0.146
+Mean Absolute Error: 0.786, Mean Squared Error 0.531, Pearson: 0.167
+Mean Absolute Error: 0.796, Mean Squared Error 0.521, Pearson: 0.172

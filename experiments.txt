@@ -1,0 +1,40 @@
+1 way only, using pooled output
+8 epoch on augmented dataset, then 2 on original dataset
+lr = 2e-6, eps=1e-8
+Mean Absolute Error: 0.766, Mean Squared Error 0.535, Pearson: 0.159
+
+1 way only, using pooled output
+8 epoch on augmented dataset, then 2 on original dataset
+lr=1e-6, eps=1e-9
+loss = smooth_l1_loss
+Mean Absolute Error: 0.753, Mean Squared Error 0.500, Pearson: 0.141
+
+2 ways, using CLS output
+smooth_l1_loss
+lr=2e-5, eps=1e-9
+linear schedule with warmup, 10 steps, 10% warmup
+80% of training on dataLoader_train_aug
+After 1 epoch:
+Mean Absolute Error: 0.764, Mean Squared Error 0.511, Pearson: 0.146
+After 3 epochs:
+Mean Absolute Error: 0.764, Mean Squared Error 0.511, Pearson: 0.146
+(stopped here)
+
+same thing, but setting epochs = 3. 
+1 epoch is with aug, 2 with normal
+Mean Absolute Error: 0.820, Mean Squared Error 0.543, Pearson: 0.150
+
+same, but MSE loss
+Mean Absolute Error: 0.731, Mean Squared Error 0.508, Pearson: 0.170
+Mean Absolute Error: 0.801, Mean Squared Error 0.511, Pearson: 0.191
+Mean Absolute Error: 0.822, Mean Squared Error 0.529, Pearson: 0.168
+
+Smooth L1 Loss
+Mean Absolute Error: 0.879, Mean Squared Error 0.583, Pearson: 0.170
+Mean Absolute Error: 0.807, Mean Squared Error 0.532, Pearson: 0.191
+Mean Absolute Error: 0.834, Mean Squared Error 0.552, Pearson: 0.161
+
+2 aug epochs, then 1 normal
+Mean Absolute Error: 0.972, Mean Squared Error 0.637, Pearson: 0.164
+Mean Absolute Error: 0.794, Mean Squared Error 0.537, Pearson: 0.174
+Mean Absolute Error: 0.808, Mean Squared Error 0.542, Pearson: 0.175

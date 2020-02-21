@@ -287,7 +287,7 @@ def train_part(
 
             if t % print_every == 0:
                 print()
-                print("Epoch: %d, Iteration %d, loss = %.4f, avg_loss = %.4f" % (e, t, l, avg_loss), end="")
+                print("Epoch: %d,\tIteration %d,\tloss = %.4f,\tavg_loss = %.4f" % (e, t, l, avg_loss), end="")
             print(".", end="")
         print()
         print("Avg loss %.3f" % (avg_loss))

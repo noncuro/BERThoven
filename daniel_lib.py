@@ -186,7 +186,7 @@ class BERThoven(nn.Module):
     def forward(self, x1, x2):
         # The 1 index is for the pooled head
         if self.cls:
-            out1a = self.bert_layers(x1)[0][0]
+            out1a = self.bert_layers(x1)[0][:,0,:]
         else:
             out1a = self.bert_layers(x1)[1]
         if not self.both_ways:

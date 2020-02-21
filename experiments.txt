@@ -40,10 +40,31 @@ Mean Absolute Error: 0.794, Mean Squared Error 0.537, Pearson: 0.174
 Mean Absolute Error: 0.808, Mean Squared Error 0.542, Pearson: 0.175
 
 constant_schedule_with_warmup
+
+mse
+Mean Absolute Error: 0.909, Mean Squared Error 0.590, Pearson: 0.146
+Mean Absolute Error: 0.786, Mean Squared Error 0.531, Pearson: 0.167
+Mean Absolute Error: 0.796, Mean Squared Error 0.521, Pearson: 0.172
+
+l1_loss
+Mean Absolute Error: 0.840, Mean Squared Error 0.542, Pearson: 0.162
+Mean Absolute Error: 0.841, Mean Squared Error 0.544, Pearson: 0.162
+Mean Absolute Error: 0.779, Mean Squared Error 0.512, Pearson: 0.190
+
+smooth l1 loss
+Mean Absolute Error: 0.805, Mean Squared Error 0.535, Pearson: 0.182
+Mean Absolute Error: 0.770, Mean Squared Error 0.512, Pearson: 0.199
+Mean Absolute Error: 0.890, Mean Squared Error 0.549, Pearson: 0.138
+
+smooth l1 loss (repeat)
 Mean Absolute Error: 0.898, Mean Squared Error 0.584, Pearson: 0.161
 Mean Absolute Error: 0.792, Mean Squared Error 0.538, Pearson: 0.179
 Mean Absolute Error: 0.774, Mean Squared Error 0.519, Pearson: 0.214
 
-Mean Absolute Error: 0.909, Mean Squared Error 0.590, Pearson: 0.146
-Mean Absolute Error: 0.786, Mean Squared Error 0.531, Pearson: 0.167
-Mean Absolute Error: 0.796, Mean Squared Error 0.521, Pearson: 0.172
+original dataset only
+smooth l1 loss
+Mean Absolute Error: 0.779, Mean Squared Error 0.519, Pearson: 0.172
+Mean Absolute Error: 0.782, Mean Squared Error 0.511, Pearson: 0.177
+Mean Absolute Error: 0.748, Mean Squared Error 0.507, Pearson: 0.190
+
+with augmentation, eps=1e-8, one direction only, smooth_l1_loss

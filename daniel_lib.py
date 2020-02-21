@@ -163,6 +163,7 @@ class BERThoven(nn.Module):
         concat_outputs: run BERT with text in both directions, then concatenate the outputs for the fc layer
         cls: use the [CLS] output (instead of the pooled output)
     """
+
     def __init__(self, bert_model, sum_outputs=False, concat_outputs=False, cls=False):
         super(BERThoven, self).__init__()
 
@@ -181,18 +182,17 @@ class BERThoven(nn.Module):
         self.both_ways = sum_outputs or concat_outputs
         self.sum_outputs = sum_outputs
         self.concat_outputs = concat_outputs
-        self.cls = cls
+        self.get_bert_output = lambda x: x[0][:, 0, :] if cls else x[1]
 
     def forward(self, x1, x2):
         # The 1 index is for the pooled head
-        if self.cls:
-            out1a = self.bert_layers(x1)[0][:,0,:]
-        else:
-            out1a = self.bert_layers(x1)[1]
+        out1a = self.bert_layers(x1)
+        out1a = self.get_bert_output(out1a)
         if not self.both_ways:
             out1x = out1a
         else:
-            out1b = self.bert_layers(x2)[1]
+            out1b = self.bert_layers(x2)
+            out1b = self.get_bert_output(out1b)
             if self.concat_outputs:
                 out1x = torch.cat((out1a, out1b), 1)
             else:

@@ -32,9 +32,9 @@ def pad(id_sequences, wiggle_room=0, max_length=None):
 
 
 def add_mask(sentence):
-    index_mask = np.random.randint(1, len(sentence) - 1)
-    while sentence[index_mask] == "[SEP]":
-        index_mask = np.random.randint(1, len(sentence) - 1)
+    index_mask = np.random.randint(0, len(sentence) - 1)
+    while sentence[index_mask] == "[SEP]" or sentence[index_mask] == "[CLS]":
+        index_mask = np.random.randint(0, len(sentence) - 1)
 
     sentence[index_mask] = "[MASK]"
     return sentence

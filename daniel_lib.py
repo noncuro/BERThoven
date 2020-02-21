@@ -158,7 +158,12 @@ def augment_dataset(original, *score_lambdas):
 
 
 class BERThoven(nn.Module):
-    def __init__(self, bert_model, sum_outputs=False, concat_outputs=False):
+    """
+        sum_outputs: run BERT with text in both directions, then sum the outputs for the fc layer
+        concat_outputs: run BERT with text in both directions, then concatenate the outputs for the fc layer
+        cls: use the [CLS] output (instead of the pooled output)
+    """
+    def __init__(self, bert_model, sum_outputs=False, concat_outputs=False, cls=False):
         super(BERThoven, self).__init__()
 
         if sum_outputs and concat_outputs:
@@ -176,10 +181,14 @@ class BERThoven(nn.Module):
         self.both_ways = sum_outputs or concat_outputs
         self.sum_outputs = sum_outputs
         self.concat_outputs = concat_outputs
+        self.cls = cls
 
     def forward(self, x1, x2):
         # The 1 index is for the pooled head
-        out1a = self.bert_layers(x1)[1]
+        if self.cls:
+            out1a = self.bert_layers(x1)[0][0]
+        else:
+            out1a = self.bert_layers(x1)[1]
         if not self.both_ways:
             out1x = out1a
         else:

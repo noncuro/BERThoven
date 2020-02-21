@@ -68,3 +68,9 @@ Mean Absolute Error: 0.782, Mean Squared Error 0.511, Pearson: 0.177
 Mean Absolute Error: 0.748, Mean Squared Error 0.507, Pearson: 0.190
 
 with augmentation, eps=1e-8, one direction only, smooth_l1_loss
+Mean Absolute Error: 0.806, Mean Squared Error 0.529, Pearson: 0.168
+Mean Absolute Error: 0.800, Mean Squared Error 0.528, Pearson: 0.158
+Mean Absolute Error: 0.760, Mean Squared Error 0.514, Pearson: 0.184
+
+fuck I just realized the base model wasn't properly reset between experiments. 
+Basically gotta ignore the stuff above.

@@ -164,13 +164,15 @@ class BERThoven(nn.Module):
         cls: use the [CLS] output (instead of the pooled output)
     """
 
-    def __init__(self, bert_model, sum_outputs=False, concat_outputs=False, cls=False):
+    def __init__(self,
+                 sum_outputs=False,
+                 concat_outputs=False, cls=False):
         super(BERThoven, self).__init__()
 
         if sum_outputs and concat_outputs:
             raise RuntimeError("You can't both sum and concatenate outputs.")
 
-        self.bert_layers = bert_model
+        self.bert_layers = AutoModel.from_pretrained("bert-base-multilingual-cased")
         bert_out_features = self.bert_layers.pooler.dense.out_features
         if concat_outputs:
             self.lin_layer = nn.Linear(bert_out_features * 2, 1)

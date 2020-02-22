@@ -42,9 +42,12 @@ def generate_results_filename(filename):
 
 
 def get_loss_from_string(loss_string):
-    return {"l1_smooth": F.smooth_l1_loss, "l1": F.l1_loss, "l2": F.mse_loss}[
-        loss_string
-    ]
+    return {
+        "l1_smooth": F.smooth_l1_loss,
+        "l1": F.l1_loss,
+        "l2": F.mse_loss,
+        "nll": F.nll_loss,
+    }[loss_string]
 
 
 def get_optimizer_from_string(optimizer_string):

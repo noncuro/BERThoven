@@ -1,12 +1,23 @@
-from transformers import BertTokenizer, BertModel, AutoTokenizer, AutoModel, AdamW, get_linear_schedule_with_warmup
-import pandas as pd
-import torch
-from torch import nn
-import torch.nn.functional as F
+import os
+
 import numpy as np
+import pandas as pd
 import scipy
-from torch.utils.data import Dataset, DataLoader
+import torch
+import torch.nn.functional as F
+from IPython.display import HTML, display
+from torch import nn
+from torch.utils.data import DataLoader, Dataset
+
 from tqdm import tqdm
+from transformers import (
+    AdamW,
+    AutoModel,
+    AutoTokenizer,
+    BertModel,
+    BertTokenizer,
+    get_linear_schedule_with_warmup,
+)
 
 tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
 bert_model = AutoModel.from_pretrained("bert-base-multilingual-cased")
@@ -26,7 +37,7 @@ class BERTHovenDataset(Dataset):
                 "x1": x1[idx],
                 "x1_mask": x1_mask[idx],
                 "x2": x2[idx],
-                "x2_mask": x2_mask[idx]
+                "x2_mask": x2_mask[idx],
             }
             if not self.test:
                 sample["score"] = dataframe.scores[idx]
@@ -77,14 +88,16 @@ class MaskedDataset(BERTHovenDataset):
         return x
 
 
-def import_file(prefix):
-    with open(f"{prefix}.ende.src", "r", encoding="utf-8") as f:
+def import_file(prefix, path="./"):
+    with open(os.path.join(path, f"{prefix}.ende.src"), "r", encoding="utf-8") as f:
         src = [line.strip() for line in f]
-    with open(f"{prefix}.ende.mt", "r", encoding="utf-8") as f:
+    with open(os.path.join(path, f"{prefix}.ende.mt"), "r", encoding="utf-8") as f:
         mt = [line.strip() for line in f]
     scores = None
     if prefix != "test":
-        with open(f"{prefix}.ende.scores", "r", encoding="utf-8") as f:
+        with open(
+            os.path.join(path, f"{prefix}.ende.scores"), "r", encoding="utf-8"
+        ) as f:
             scores = [float(line.strip()) for line in f]
     return pd.DataFrame({"src": src, "mt": mt, "scores": scores})
 
@@ -110,32 +123,40 @@ def add_mask(sentence):
 
 def get_tokenized(dataframe):
     input1 = (
-        dataframe.apply(lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1)
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        dataframe.apply(
+            lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1
+        )
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
-        dataframe.apply(lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1)
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        dataframe.apply(
+            lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1
+        )
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
     return input1, input2
 
 
 def get_tokenized_with_mask(dataframe):
     input1 = (
-        dataframe.apply(lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1)
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: add_mask(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        dataframe.apply(
+            lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1
+        )
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: add_mask(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
-        dataframe.apply(lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1)
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: add_mask(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        dataframe.apply(
+            lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1
+        )
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: add_mask(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     return input1, input2
@@ -148,16 +169,15 @@ def getDataLoader(dataframe, batch_size=32, test=False):
 
 def getDataLoader_masked(dataframe, batch_size=32, test=False):
     masked_df = MaskedDataset(dataframe)
-    return torch.utils.data.DataLoader(masked_df, batch_size=batch_size, shuffle=(not test))
+    return torch.utils.data.DataLoader(
+        masked_df, batch_size=batch_size, shuffle=(not test)
+    )
 
 
 def removeOutliers(dataframe, negLimit=-3, posLimit=2):
     dataframe.loc[dataframe.scores < negLimit, "scores"] = negLimit
     dataframe.loc[dataframe.scores > posLimit, "scores"] = posLimit
     return dataframe
-
-
-from IPython.display import HTML, display
 
 
 def progress(value, max=100):
@@ -221,7 +241,14 @@ class BERThoven(nn.Module):
         cls: use the [CLS] output (instead of the pooled output)
     """
 
-    def __init__(self, sum_outputs=False, concat_outputs=False, cls=False, dropout=True, dropout_prob=0.5):
+    def __init__(
+        self,
+        sum_outputs=False,
+        concat_outputs=False,
+        cls=False,
+        dropout=True,
+        dropout_prob=0.5,
+    ):
         super(BERThoven, self).__init__()
         if sum_outputs and concat_outputs:
             raise RuntimeError("You can't both sum and concatenate outputs.")
@@ -291,21 +318,24 @@ def check_accuracy(loader, model, device, max_sample_size=None):
         mae = abs_error / num_samples
         pr, _ = scipy.stats.pearsonr(scores_epoch, truth_epoch)
 
-        print("Mean Absolute Error: %.3f, Mean Squared Error %.3f, Pearson: %.3f" % (mse, mae, pr))
+        print(
+            "Mean Absolute Error: %.3f, Mean Squared Error %.3f, Pearson: %.3f"
+            % (mse, mae, pr)
+        )
     return mse, mae, pr
 
 
 def train_part(
-        model,
-        dataloader,
-        optimizer,
-        scheduler,
-        val_loader,
-        device,
-        epochs=1,
-        max_grad_norm=1.0,
-        print_every=75,
-        loss_function=F.mse_loss,
+    model,
+    dataloader,
+    optimizer,
+    scheduler,
+    val_loader,
+    device,
+    epochs=1,
+    max_grad_norm=1.0,
+    print_every=75,
+    loss_function=F.mse_loss,
 ):
     # see F.smooth_l1_loss
 
@@ -351,7 +381,11 @@ def train_part(
 
             if t % print_every == 0:
                 print()
-                print("Epoch: %d,\tIteration %d,\tloss = %.4f,\tavg_loss = %.4f" % (e, t, l, avg_loss), end="")
+                print(
+                    "Epoch: %d,\tIteration %d,\tloss = %.4f,\tavg_loss = %.4f"
+                    % (e, t, l, avg_loss),
+                    end="",
+                )
             print(".", end="")
         print()
         print("Avg loss %.3f" % (avg_loss))

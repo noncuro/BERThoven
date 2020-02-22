@@ -5,9 +5,57 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 import scipy
+from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
 
 tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
 bert_model = AutoModel.from_pretrained("bert-base-multilingual-cased")
+
+
+class NLPDataset(Dataset):
+    """Dataset for image segmentation."""
+
+    def __init__(self, dataframe):
+        self.samples = []
+        input1, input2 = get_tokenized(dataframe)
+        x1, x1_mask = pad(input1)
+        x2, x2_mask = pad(input2)
+        for idx, _ in enumerate(tqdm(range(len(x1)), desc="Loading Data")):
+            sample = {"x1": x1[idx], "x1_mask": x1_mask[idx], "x2": x2[idx], "x2_mask": x2_mask[idx]}
+            self.samples.append(sample)
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, item):
+        return self.samples[item]
+
+class MaskedDataset(NLPDataset):
+    """Dataset for image segmentation."""
+
+    def __init__(self, dataframe, number_of_mask=1):
+        super().__init__(dataframe)
+        self.no_replace = [104, 102, 103, 0]  # MASK CLS SEP PAS
+        self.number_of_mask = number_of_mask
+
+    def __getitem__(self, item):
+        sample = self.samples[item]
+
+        return {
+            "x1": self.add_mask(sample["x1"]),
+            "x1_mask": sample["x1_mask"],
+            "x2": self.add_mask(sample["x2"]),
+            "x2_mask": sample["x2_mask"],
+        }
+
+    def add_mask(self, x):
+        for k in range(self.number_of_mask):
+            index_mask = np.random.randint(0, len(x) - 1)
+            while x[index_mask] in self.no_replace:
+                index_mask = np.random.randint(0, len(x) - 1)
+            x[index_mask] = 104
+
+        return x
 
 
 def import_file(prefix):
@@ -44,14 +92,14 @@ def add_mask(sentence):
 def get_tokenized(dataframe):
     input1 = (
         dataframe.apply(lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1)
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
         dataframe.apply(lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1)
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
     return input1, input2
 
@@ -59,16 +107,16 @@ def get_tokenized(dataframe):
 def get_tokenized_with_mask(dataframe):
     input1 = (
         dataframe.apply(lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1)
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: add_mask(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: add_mask(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
         dataframe.apply(lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1)
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: add_mask(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: add_mask(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     return input1, input2
@@ -86,16 +134,9 @@ def getDataLoader(dataframe, batch_size=32, test=False):
     return torch.utils.data.DataLoader(l, batch_size=batch_size, shuffle=(not test))
 
 
-def getDataLoader_with_mask(dataframe, batch_size=32, test=False):
-    input1, input2 = get_tokenized_with_mask(dataframe)
-    x1, x1_mask = pad(input1)
-    x2, x2_mask = pad(input2)
-    if test:
-        l = list(zip(x1, x1_mask, x2, x2_mask))
-    else:
-        l = list(zip(x1, x1_mask, x2, x2_mask, dataframe.scores))
-
-    return torch.utils.data.DataLoader(l, batch_size=batch_size, shuffle=(not test))
+def getDataLoader_masked(dataframe, batch_size=32, test=False):
+    masked_df = MaskedDataset(dataframe)
+    return torch.utils.data.DataLoader(masked_df, batch_size=batch_size, shuffle=(not test))
 
 
 def removeOutliers(dataframe, negLimit=-3, posLimit=2):
@@ -168,12 +209,7 @@ class BERThoven(nn.Module):
         cls: use the [CLS] output (instead of the pooled output)
     """
 
-    def __init__(self,
-                 sum_outputs=False,
-                 concat_outputs=False,
-                 cls=False,
-                 dropout=True,
-                 dropout_prob=0.5):
+    def __init__(self, sum_outputs=False, concat_outputs=False, cls=False, dropout=True, dropout_prob=0.5):
         super(BERThoven, self).__init__()
         if sum_outputs and concat_outputs:
             raise RuntimeError("You can't both sum and concatenate outputs.")
@@ -248,16 +284,16 @@ def check_accuracy(loader, model, device, max_sample_size=None):
 
 
 def train_part(
-        model,
-        dataloader,
-        optimizer,
-        scheduler,
-        val_loader,
-        device,
-        epochs=1,
-        max_grad_norm=1.0,
-        print_every=75,
-        loss_function=F.mse_loss,
+    model,
+    dataloader,
+    optimizer,
+    scheduler,
+    val_loader,
+    device,
+    epochs=1,
+    max_grad_norm=1.0,
+    print_every=75,
+    loss_function=F.mse_loss,
 ):
     # see F.smooth_l1_loss
 

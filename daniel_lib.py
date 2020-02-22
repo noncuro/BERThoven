@@ -12,7 +12,7 @@ tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
 bert_model = AutoModel.from_pretrained("bert-base-multilingual-cased")
 
 
-class NLPDataset(Dataset):
+class BERTHovenDataset(Dataset):
     """Dataset for image segmentation."""
 
     def __init__(self, dataframe, test=False):
@@ -36,10 +36,18 @@ class NLPDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, item):
-        return self.samples[item]
+        sample = self.samples[item]
+        x1 = sample["x1"]
+        x1_mask = sample["x1_mask"]
+        x2 = sample["x2"]
+        x2_mask = sample["x2_mask"]
+        if not self.test:
+            score = sample["score"]
+            return x1, x1_mask, x2, x2_mask, score
+        return x1, x1_mask, x2, x2_mask
 
 
-class MaskedDataset(NLPDataset):
+class MaskedDataset(BERTHovenDataset):
     """Dataset for image segmentation."""
 
     def __init__(self, dataframe, number_of_mask=1, test=False):
@@ -49,15 +57,15 @@ class MaskedDataset(NLPDataset):
 
     def __getitem__(self, item):
         sample = self.samples[item]
-        to_return = {
-                "x1": self.add_mask(sample["x1"]),
-                "x1_mask": sample["x1_mask"],
-                "x2": self.add_mask(sample["x2"]),
-                "x2_mask": sample["x2_mask"],
-            }
+        x1 = self.add_mask(sample["x1"])
+        x1_mask = sample["x1_mask"]
+        x2 = self.add_mask(sample["x2"])
+        x2_mask = sample["x2_mask"]
+
         if not self.test:
-            to_return["score"] = sample["score"]
-        return to_return
+            score = sample["score"]
+            return x1, x1_mask, x2, x2_mask, score
+        return x1, x1_mask, x2, x2_mask
 
     def add_mask(self, x):
         for k in range(self.number_of_mask):
@@ -134,15 +142,8 @@ def get_tokenized_with_mask(dataframe):
 
 
 def getDataLoader(dataframe, batch_size=32, test=False):
-    input1, input2 = get_tokenized(dataframe)
-    x1, x1_mask = pad(input1)
-    x2, x2_mask = pad(input2)
-    if test:
-        l = list(zip(x1, x1_mask, x2, x2_mask))
-    else:
-        l = list(zip(x1, x1_mask, x2, x2_mask, dataframe.scores))
-
-    return torch.utils.data.DataLoader(l, batch_size=batch_size, shuffle=(not test))
+    ds = BERTHovenDataset(dataframe)
+    return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(not test))
 
 
 def getDataLoader_masked(dataframe, batch_size=32, test=False):

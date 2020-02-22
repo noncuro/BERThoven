@@ -40,7 +40,7 @@ class BERTHovenDataset(Dataset):
                 "x2_mask": x2_mask[idx],
             }
             if not self.test:
-                sample["score"] = dataframe.scores[idx]
+                sample["score"] = dataframe.iloc[idx].scores
             self.samples.append(sample)
 
     def __len__(self):

@@ -94,7 +94,7 @@ def getDataLoader_with_mask(dataframe, batch_size=32, test=False):
         l = list(zip(x1, x1_mask, x2, x2_mask))
     else:
         l = list(zip(x1, x1_mask, x2, x2_mask, dataframe.scores))
-        
+
     return torch.utils.data.DataLoader(l, batch_size=batch_size, shuffle=(not test))
 
 
@@ -312,6 +312,7 @@ def train_part(
         # print("Saving the model.")
         # torch.save(model.state_dict(), 'nlp_model.pt')
     return check_accuracy(val_loader, model, device=device)
+
 
 def get_test_labels(loader, model, device):
     model = model.to(device=device)

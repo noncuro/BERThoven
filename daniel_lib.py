@@ -254,7 +254,7 @@ def train_part(
 ):
     # see F.smooth_l1_loss
 
-    avg_loss = 1
+    avg_loss = None
     momentum = 0.05
 
     model = model.to(device=device)  # move the model parameters to CPU/GPU
@@ -287,8 +287,10 @@ def train_part(
 
             scheduler.step()
             l = loss.item()
-
-            avg_loss = l * momentum + avg_loss * (1 - momentum)
+            if avg_loss is None:
+                avg_loss = l
+            else:
+                avg_loss = l * momentum + avg_loss * (1 - momentum)
 
             if t % print_every == 0:
                 print()

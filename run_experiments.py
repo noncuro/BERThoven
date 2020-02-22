@@ -74,8 +74,6 @@ class ExperimentRunner:
         else:
             self.device = torch.device("cpu")
 
-        self.load_dataset()
-
     def maybe_download(
         self,
         filename="files.zip",
@@ -183,6 +181,8 @@ class ExperimentRunner:
     def run(self):
         print("Looking for dataset...")
         self.maybe_download()
+        print("Loading datasets into memory...")
+        self.load_dataset()
         print("Loading experiments file...")
         self.reload_experiments()
         print("Started experiments...")
@@ -198,3 +198,4 @@ if __name__ == "__main__":
     experiments_file = "files.zip"
     dataset_path = "dataset_files"
     runner = ExperimentRunner(experiments_file, dataset_path)
+    runner.run()

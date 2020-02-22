@@ -162,10 +162,10 @@ class ExperimentRunner:
             optimizer, num_warmup_steps=warmup_steps, num_training_steps=training_steps
         )
 
-        aug_epochs = int(params["upsampling"] * params["epochs"])
+        aug_epochs = params["epochs"] - 1
 
-        if params["upsampling"] > 0:
-            final_mae, final_mse, final_pr = train_part(
+        if aug_epochs > 0:
+            train_part(
                 model,
                 self.dataLoader_train_aug,
                 optimizer,
@@ -177,18 +177,17 @@ class ExperimentRunner:
                 device=self.device,
             )
 
-        if params["upsampling"] < 1:
-            final_mae, final_mse, final_pr = train_part(
-                model,
-                self.dataLoader_train,
-                optimizer,
-                scheduler,
-                val_loader=self.dataLoader_dev,
-                epochs=params["epochs"] - aug_epochs,
-                print_every=print_every,
-                loss_function=loss_function,
-                device=self.device,
-            )
+        final_mae, final_mse, final_pr = train_part(
+            model,
+            self.dataLoader_train,
+            optimizer,
+            scheduler,
+            val_loader=self.dataLoader_dev,
+            epochs=params["epochs"] - aug_epochs,
+            print_every=print_every,
+            loss_function=loss_function,
+            device=self.device,
+        )
 
         return final_mae, final_mse, final_pr
 

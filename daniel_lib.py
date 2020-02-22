@@ -25,10 +25,10 @@ def import_file(prefix):
 def pad(id_sequences):
     max_length = max([len(s) for s in id_sequences])
     padded_data = np.zeros((len(id_sequences), max_length))
-    mask = np.ones_like(padded_data)
+    mask = np.zeros_like(padded_data)
     for i, sample in enumerate(id_sequences):
         padded_data[i, : len(sample)] = sample
-        mask[i, : len(sample)] = 0
+        mask[i, : len(sample)] = 1
     return padded_data, mask
 
 

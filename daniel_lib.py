@@ -12,13 +12,10 @@ tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
 bert_model = AutoModel.from_pretrained("bert-base-multilingual-cased")
 
 
-class MaskedDataset(Dataset):
+class NLPDataset(Dataset):
     """Dataset for image segmentation."""
 
-    def __init__(self, dataframe, number_of_mask=1):
-        self.no_replace = [104, 102, 103, 0]  # MASK CLS SEP PAS
-        self.number_of_mask = number_of_mask
-
+    def __init__(self, dataframe):
         self.samples = []
         input1, input2 = get_tokenized(dataframe)
         x1, x1_mask = pad(input1)
@@ -29,6 +26,17 @@ class MaskedDataset(Dataset):
 
     def __len__(self):
         return len(self.samples)
+
+    def __getitem__(self, item):
+        return self.samples[item]
+
+class MaskedDataset(NLPDataset):
+    """Dataset for image segmentation."""
+
+    def __init__(self, dataframe, number_of_mask=1):
+        super().__init__(dataframe)
+        self.no_replace = [104, 102, 103, 0]  # MASK CLS SEP PAS
+        self.number_of_mask = number_of_mask
 
     def __getitem__(self, item):
         sample = self.samples[item]

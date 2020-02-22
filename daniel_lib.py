@@ -22,13 +22,14 @@ def import_file(prefix):
     return pd.DataFrame({"src": src, "mt": mt, "scores": scores})
 
 
-def pad(id_sequences, wiggle_room=0, max_length=None):
-    if max_length is None:
-        max_length = max([len(s) for s in id_sequences]) + wiggle_room
+def pad(id_sequences):
+    max_length = max([len(s) for s in id_sequences])
     padded_data = np.zeros((len(id_sequences), max_length))
+    mask = np.ones_like(padded_data)
     for i, sample in enumerate(id_sequences):
         padded_data[i, : len(sample)] = sample
-    return padded_data
+        mask[i, : len(sample)] = 0
+    return padded_data, mask
 
 
 def add_mask(sentence):
@@ -43,32 +44,31 @@ def add_mask(sentence):
 def get_tokenized(dataframe):
     input1 = (
         dataframe.apply(lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1)
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+            .apply(lambda a: tokenizer.tokenize(a))
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
         dataframe.apply(lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1)
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+            .apply(lambda a: tokenizer.tokenize(a))
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
     return input1, input2
 
 
 def get_tokenized_with_mask(dataframe):
-
     input1 = (
         dataframe.apply(lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1)
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: add_mask(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+            .apply(lambda a: tokenizer.tokenize(a))
+            .apply(lambda a: add_mask(a))
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
         dataframe.apply(lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1)
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: add_mask(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+            .apply(lambda a: tokenizer.tokenize(a))
+            .apply(lambda a: add_mask(a))
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     return input1, input2
@@ -76,10 +76,12 @@ def get_tokenized_with_mask(dataframe):
 
 def getDataLoader(dataframe, batch_size=32, test=False):
     input1, input2 = get_tokenized(dataframe)
+    x1, x1_mask = pad(input1)
+    x2, x2_mask = pad(input2)
     if test:
-        l = list(zip(pad(input1), pad(input2)))
+        l = list(zip(x1, x1_mask, x2, x2_mask))
     else:
-        l = list(zip(pad(input1), pad(input2), dataframe.scores))
+        l = list(zip(x1, x1_mask, x2, x2_mask, dataframe.scores))
 
     return torch.utils.data.DataLoader(l, batch_size=batch_size, shuffle=(not test))
 
@@ -191,7 +193,7 @@ class BERThoven(nn.Module):
 
     def forward(self, x1, x2):
         # The 1 index is for the pooled head
-        out1a = self.bert_layers(x1)
+        out1a = self.bert_layers(x1[0], attention_mask=x1[1])
         out1a = self.get_bert_output(out1a)
         if not self.both_ways:
             out1x = out1a
@@ -220,12 +222,14 @@ def check_accuracy(loader, model, device, max_sample_size=None):
         scores_epoch = []
         truth_epoch = []
 
-        for x1, x2, y in loader:
+        for x1, x1_mask, x2, x2_mask, y in loader:
             truth_epoch += y.tolist()
             x1 = x1.to(device=device, dtype=torch.long)
+            x1_mask = x1_mask.to(device=device, dtype=torch.long)
             x2 = x2.to(device=device, dtype=torch.long)
+            x2_mask = x2_mask.to(device=device, dtype=torch.long)
             y = y.to(device=device, dtype=torch.float32)
-            scores = model.forward(x1, x2)
+            scores = model.forward((x1, x1_mask), (x2, x2_mask))
             scores_epoch += scores.tolist()
 
             abs_error += (scores - y).abs().sum()
@@ -241,16 +245,16 @@ def check_accuracy(loader, model, device, max_sample_size=None):
 
 
 def train_part(
-    model,
-    dataloader,
-    optimizer,
-    scheduler,
-    val_loader,
-    device,
-    epochs=1,
-    max_grad_norm=1.0,
-    print_every=75,
-    loss_function=F.mse_loss,
+        model,
+        dataloader,
+        optimizer,
+        scheduler,
+        val_loader,
+        device,
+        epochs=1,
+        max_grad_norm=1.0,
+        print_every=75,
+        loss_function=F.mse_loss,
 ):
     # see F.smooth_l1_loss
 
@@ -260,13 +264,15 @@ def train_part(
     model = model.to(device=device)  # move the model parameters to CPU/GPU
     for e in range(epochs):
         print(f"Iterations per epoch:{len(dataloader)}")
-        for t, (x1, x2, y) in enumerate(dataloader):
+        for t, (x1, x1_mask, x2, x2_mask, y) in enumerate(dataloader):
             model.train()  # put model to training mode
             x1 = x1.to(device=device, dtype=torch.long)
+            x1_mask = x1_mask.to(device=device, dtype=torch.long)
             x2 = x2.to(device=device, dtype=torch.long)
+            x2_mask = x2_mask.to(device=device, dtype=torch.long)
             y = y.to(device=device, dtype=torch.float32)
 
-            scores = model(x1, x2)
+            scores = model.forward((x1, x1_mask), (x2, x2_mask))
 
             loss = loss_function(scores, y)
             # Zero out all of the gradients for the variables which the optimizer
@@ -313,9 +319,11 @@ def get_test_labels(loader, model, device):
     sqr_error = 0
     all_scores = []
     with torch.no_grad():
-        for x1, x2 in loader:
+        for x1, x1_mask, x2, x2_mask in loader:
             x1 = x1.to(device=device, dtype=torch.long)
+            x1_mask = x1_mask.to(device=device, dtype=torch.long)
             x2 = x2.to(device=device, dtype=torch.long)
-            scores = model.forward(x1, x2)
+            x2_mask = x2_mask.to(device=device, dtype=torch.long)
+            scores = model.forward((x1, x1_mask), (x2, x2_mask))
             all_scores += [i.item() for i in scores]
     return all_scores

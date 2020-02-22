@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import zipfile
 
 import requests
@@ -211,7 +212,7 @@ class ExperimentRunner:
 
 
 if __name__ == "__main__":
-    experiments_file = "experiments.json"
+    experiments_file = sys.argv[1] if len(sys.argv) > 1 else "experiments.json"
     dataset_path = "dataset_files"
     runner = ExperimentRunner(experiments_file, dataset_path)
     runner.run()

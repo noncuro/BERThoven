@@ -2,27 +2,15 @@ import json
 import os
 import zipfile
 
-import numpy as np
-import pandas as pd
 import requests
-import scipy
 import torch
 import torch.nn.functional as F
-from torch import nn
 
 from daniel_lib import (
     BERThoven,
     augment_dataset,
-    check_accuracy,
-    get_sentence_embeddings,
-    get_test_labels,
-    get_tokenized,
     getDataLoader,
     import_file,
-    pad,
-    progress,
-    removeOutliers,
-    tokenizer,
     train_part,
 )
 from transformers import (

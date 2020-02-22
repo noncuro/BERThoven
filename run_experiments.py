@@ -204,3 +204,8 @@ class ExperimentRunner:
             model = build_model(experiment)
             mae, mse, pr = self.train(model, experiment)
             self.save_experiment(experiment, mae, mse, pr)
+
+if __name__ == "__main__":
+    experiments_file = "files.zip"
+    dataset_path = "dataset_files"
+    runner = ExperimentRunner(experiments_file, dataset_path)

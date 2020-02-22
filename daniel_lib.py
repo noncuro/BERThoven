@@ -166,9 +166,11 @@ class BERThoven(nn.Module):
 
     def __init__(self,
                  sum_outputs=False,
-                 concat_outputs=False, cls=False):
+                 concat_outputs=False,
+                 cls=False,
+                 dropout=True,
+                 dropout_prob=0.5):
         super(BERThoven, self).__init__()
-
         if sum_outputs and concat_outputs:
             raise RuntimeError("You can't both sum and concatenate outputs.")
 
@@ -179,8 +181,9 @@ class BERThoven(nn.Module):
         else:
             self.lin_layer = nn.Linear(bert_out_features, 1)
 
-        self.droupout_layer = nn.Dropout(p=0.5)
+        self.droupout_layer = nn.Dropout(p=dropout_prob)
 
+        self.droupout = dropout
         self.both_ways = sum_outputs or concat_outputs
         self.sum_outputs = sum_outputs
         self.concat_outputs = concat_outputs
@@ -200,7 +203,7 @@ class BERThoven(nn.Module):
             else:
                 out1x = out1a + out1b
 
-        out2 = self.droupout_layer(out1x)
+        out2 = self.droupout_layer(out1x) if self.droupout else out1x
         out3 = self.lin_layer(out2)
         return out3.squeeze()
 

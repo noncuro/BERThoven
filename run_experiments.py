@@ -48,6 +48,13 @@ def get_optimizer_from_string(optimizer_string):
     return {"AdamW": AdamW}[optimizer_string]
 
 
+def get_scheduler_from_string(scheduler_string):
+    return {
+        "linear": get_linear_schedule_with_warmup,
+        "constant": get_constant_schedule_with_warmup,
+    }[scheduler_string]
+
+
 def build_model(params):
     concat_outputs = params["combine_inputs"] == "concat"
     sum_outputs = params["combine_inputs"] == "sum"
@@ -109,11 +116,17 @@ class ExperimentRunner:
         self.dataLoader_test = getDataLoader(test_df, batch_size=32, test=True)
 
     def reload_experiments(self):
+        if not os.path.isfile(self.experiments_file):
+            print("No experiments found. Nothing to do here.")
+            exit(0)
         with open(self.experiments_file) as f:
             experiments = json.load(f)
 
-        with open(self.results_file) as f:
-            self.finished_experiments = json.load(f)
+        if os.path.isfile(self.experiments_file):
+            with open(self.results_file) as f:
+                self.finished_experiments = json.load(f)
+        else:
+            self.finished_experiments = []
 
         self.remaining_experiments = [
             experiment
@@ -144,7 +157,8 @@ class ExperimentRunner:
         optimizer = params["optimizer"](
             model.parameters(), lr=params["lr"], eps=params["eps"], correct_bias=False
         )
-        scheduler = params["scheduler"](
+
+        scheduler = get_scheduler_from_string(params["scheduler"])(
             optimizer, num_warmup_steps=warmup_steps, num_training_steps=training_steps
         )
 
@@ -195,7 +209,7 @@ class ExperimentRunner:
 
 
 if __name__ == "__main__":
-    experiments_file = "files.zip"
+    experiments_file = "experiments.json"
     dataset_path = "dataset_files"
     runner = ExperimentRunner(experiments_file, dataset_path)
     runner.run()

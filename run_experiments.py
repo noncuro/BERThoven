@@ -1,8 +1,10 @@
 import json
 import os
+import zipfile
 
 import numpy as np
 import pandas as pd
+import requests
 import scipy
 import torch
 import torch.nn.functional as F
@@ -28,6 +30,10 @@ from transformers import (
     get_constant_schedule_with_warmup,
     get_linear_schedule_with_warmup,
 )
+
+
+def exp_to_string(experiment):
+    return " ".join([f"{key} = {value}" for key, value in experiment.items()])
 
 
 def experiments_match(exp1, exp2):
@@ -81,6 +87,22 @@ class ExperimentRunner:
             self.device = torch.device("cpu")
 
         self.load_dataset()
+
+    def maybe_download(
+        self,
+        filename="files.zip",
+        download_url="https://competitions.codalab.org/my/datasets/download/c748d2c0-d6be-4e36-9f12-ca0e88819c4d",
+    ):
+        if not os.path.isfile(filename):
+            print(f"Dataset not found, downloading from {download_url}")
+            r = requests.get(download_url)
+            with open(filename, "wb") as f:
+                f.write(r.content)
+            if not os.path.isdir(self.dataset_path):
+                os.makedirs(self.dataset_path)
+            zipfile.ZipFile(filename).extractall(self.dataset_path)
+        else:
+            print("Dataset already downloaded")
 
     def load_dataset(self):
         train_df = import_file("train")
@@ -171,9 +193,13 @@ class ExperimentRunner:
         return final_mae, final_mse, final_pr
 
     def run(self):
+        print("Looking for dataset...")
+        self.maybe_download()
+        print("Loading experiments file...")
         self.reload_experiments()
+        print("Started experiments...")
         for experiment in self.remaining_experiments:
-            print("="*30)
+            print("=" * 30)
             print(exp_to_string(experiment))
             model = build_model(experiment)
             mae, mse, pr = self.train(model, experiment)

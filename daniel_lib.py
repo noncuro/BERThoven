@@ -88,11 +88,13 @@ def getDataLoader(dataframe, batch_size=32, test=False):
 
 def getDataLoader_with_mask(dataframe, batch_size=32, test=False):
     input1, input2 = get_tokenized_with_mask(dataframe)
+    x1, x1_mask = pad(input1)
+    x2, x2_mask = pad(input2)
     if test:
-        l = list(zip(pad(input1), pad(input2)))
+        l = list(zip(x1, x1_mask, x2, x2_mask))
     else:
-        l = list(zip(pad(input1), pad(input2), dataframe.scores))
-
+        l = list(zip(x1, x1_mask, x2, x2_mask, dataframe.scores))
+        
     return torch.utils.data.DataLoader(l, batch_size=batch_size, shuffle=(not test))
 
 

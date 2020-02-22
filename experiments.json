@@ -6,7 +6,7 @@
     "eps": 1e-8,
     "loss_function":"l1_smooth",
     "combine_inputs": "concat",
-    "epochs": 3,
+    "epochs": 1,
     "dropout": 0.2,
     "upsampling": 0.66,
     "masking":  "no",

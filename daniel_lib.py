@@ -309,8 +309,8 @@ def check_accuracy(loader, model, device, max_sample_size=None):
             scores = model.forward((x1, x1_mask), (x2, x2_mask))
             scores_epoch += scores.tolist()
 
-            abs_error += (scores - y).abs().sum()
-            sqr_error += ((scores - y) ** 2).sum()
+            abs_error += (scores - y).abs().sum().item()
+            sqr_error += ((scores - y) ** 2).sum().item()
             num_samples += scores.size(0)
             if max_sample_size != None and num_samples >= num_samples:
                 break

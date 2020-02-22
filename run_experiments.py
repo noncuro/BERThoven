@@ -146,7 +146,7 @@ class ExperimentRunner:
             {"params": params, "results": {"mae": mae, "mse": mse, "pearson": pearson}}
         )
         with open(self.results_file, "w") as f:
-            json.dump(self.finished_experiments, f)
+            json.dump(self.finished_experiments, f, indent=4)
 
     def train(self, model, params, print_every=60):
         loss_function = get_loss_from_string(params["loss_function"])
@@ -203,7 +203,7 @@ class ExperimentRunner:
         print("Started experiments...")
         for i, experiment in enumerate(self.remaining_experiments):
             print("=" * 30)
-            print(f"Experiment {i} of {len(self.remaining_experiments)}")
+            print(f"Experiment {i+1} of {len(self.remaining_experiments)}")
             print(exp_to_string(experiment))
             model = build_model(experiment)
             mae, mse, pr = self.train(model, experiment)

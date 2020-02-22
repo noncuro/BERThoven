@@ -142,32 +142,39 @@ class ExperimentRunner:
 
         aug_epochs = int(params["upsampling"] * params["epochs"])
 
-        train_part(
-            model,
-            self.dataLoader_train_aug,
-            optimizer,
-            scheduler,
-            val_loader=self.dataLoader_dev,
-            epochs=aug_epochs,
-            print_every=print_every,
-            loss_function=loss_function,
-            device=self.device,
-        )
+        if params["upsampling"] > 0:
+            final_mae, final_mse, final_pr = train_part(
+                model,
+                self.dataLoader_train_aug,
+                optimizer,
+                scheduler,
+                val_loader=self.dataLoader_dev,
+                epochs=aug_epochs,
+                print_every=print_every,
+                loss_function=loss_function,
+                device=self.device,
+            )
 
-        train_part(
-            model,
-            self.dataLoader_train,
-            optimizer,
-            scheduler,
-            val_loader=self.dataLoader_dev,
-            epochs=params["epochs"] - aug_epochs,
-            print_every=print_every,
-            loss_function=loss_function,
-            device=self.device,
-        )
+        if params["upsampling"] < 1:
+            final_mae, final_mse, final_pr = train_part(
+                model,
+                self.dataLoader_train,
+                optimizer,
+                scheduler,
+                val_loader=self.dataLoader_dev,
+                epochs=params["epochs"] - aug_epochs,
+                print_every=print_every,
+                loss_function=loss_function,
+                device=self.device,
+            )
+
+        return final_mae, final_mse, final_pr
 
     def run(self):
         self.reload_experiments()
         for experiment in self.remaining_experiments:
+            print("="*30)
+            print(exp_to_string(experiment))
             model = build_model(experiment)
-            self.train(model, experiment)
+            mae, mse, pr = self.train(model, experiment)
+            self.save_experiment(experiment, mae, mse, pr)

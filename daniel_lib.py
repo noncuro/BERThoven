@@ -198,7 +198,7 @@ class BERThoven(nn.Module):
         if not self.both_ways:
             out1x = out1a
         else:
-            out1b = self.bert_layers(x2)
+            out1b = self.bert_layers(x2[0], attention_mask=x2[1])
             out1b = self.get_bert_output(out1b)
             if self.concat_outputs:
                 out1x = torch.cat((out1a, out1b), 1)

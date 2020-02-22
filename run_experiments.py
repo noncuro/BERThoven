@@ -119,10 +119,11 @@ class ExperimentRunner:
         if not os.path.isfile(self.experiments_file):
             print("No experiments found. Nothing to do here.")
             exit(0)
+
         with open(self.experiments_file) as f:
             experiments = json.load(f)
 
-        if os.path.isfile(self.experiments_file):
+        if os.path.isfile(self.results_file):
             with open(self.results_file) as f:
                 self.finished_experiments = json.load(f)
         else:
@@ -130,8 +131,8 @@ class ExperimentRunner:
 
         self.remaining_experiments = [
             experiment
-            for experiment in experiments.items()
-            if self.check_if_done(experiment)
+            for experiment in experiments
+            if not self.check_if_done(experiment)
         ]
 
     def check_if_done(self, experiment):
@@ -154,7 +155,7 @@ class ExperimentRunner:
         training_steps = steps_per_epoch * params["epochs"]
         warmup_steps = int(training_steps * params["warmup_proportion"])
 
-        optimizer = params["optimizer"](
+        optimizer = get_optimizer_from_string(params["optimizer"])(
             model.parameters(), lr=params["lr"], eps=params["eps"], correct_bias=False
         )
 
@@ -198,9 +199,11 @@ class ExperimentRunner:
         self.load_dataset()
         print("Loading experiments file...")
         self.reload_experiments()
+        print(f"Found {len(self.remaining_experiments)} experiments to run")
         print("Started experiments...")
-        for experiment in self.remaining_experiments:
+        for i, experiment in enumerate(self.remaining_experiments):
             print("=" * 30)
+            print(f"Experiment {i} of {len(self.remaining_experiments)}")
             print(exp_to_string(experiment))
             model = build_model(experiment)
             mae, mse, pr = self.train(model, experiment)

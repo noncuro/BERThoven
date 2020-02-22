@@ -1,0 +1,7 @@
+requests
+pandas
+scipy
+torch
+numpy
+transformers
+ipython

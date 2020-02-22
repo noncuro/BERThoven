@@ -51,13 +51,51 @@ def get_optimizer_from_string(optimizer_string):
     return {"AdamW": AdamW}[optimizer_string]
 
 
+def build_model(params):
+    concat_outputs = params["combine_inputs"] == "concat"
+    sum_outputs = params["combine_inputs"] == "sum"
+    dropout = params["dropout"] == 0.0
+    return BERThoven(
+        cls=params["cls"],
+        concat_outputs=concat_outputs,
+        sum_outputs=sum_outputs,
+        dropout=dropout,
+        dropout_prob=params["dropout"],
+    )
+
+
 class ExperimentRunner:
-    def __init__(self, experiments_file, dataset_path):
+    def __init__(self, experiments_file, dataset_path, use_gpu=True):
         self.experiments_file = experiments_file
         self.results_file = generate_results_filename(experiments_file)
         self.dataset_path = dataset_path
         self.finished_experiments = []
         self.remaining_experiments = []
+
+        if use_gpu and torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        else:
+            self.device = torch.device("cpu")
+
+        self.load_dataset()
+
+    def load_dataset(self):
+        train_df = import_file("train")
+        dev_df = import_file("dev")
+        test_df = import_file("test")
+        train_df_aug = augment_dataset(
+            train_df,
+            lambda score: score < -1,
+            lambda score: score < -0.3,
+            lambda score: score > 0.55,
+            lambda score: score > 1,
+            lambda score: score > 1.3,
+        )
+
+        self.dataLoader_train = getDataLoader(train_df, batch_size=32)
+        self.dataLoader_train_aug = getDataLoader(train_df_aug, batch_size=32)
+        self.dataLoader_dev = getDataLoader(dev_df, batch_size=32)
+        self.dataLoader_test = getDataLoader(test_df, batch_size=32, test=True)
 
     def reload_experiments(self):
         with open(self.experiments_file) as f:
@@ -88,7 +126,7 @@ class ExperimentRunner:
     def train(self, model, params, print_every=60):
         loss_function = get_loss_from_string(params["loss_function"])
 
-        steps_per_epoch = len(dataLoader_train_aug)
+        steps_per_epoch = len(self.dataLoader_train_aug)
         training_steps = steps_per_epoch * params["epochs"]
         warmup_steps = int(training_steps * params["warmup_proportion"])
 
@@ -98,34 +136,35 @@ class ExperimentRunner:
         scheduler = params["scheduler"](
             optimizer, num_warmup_steps=warmup_steps, num_training_steps=training_steps
         )
-        # scheduler = get_constant_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps)
 
         aug_epochs = int(params["upsampling"] * params["epochs"])
 
         train_part(
-            nlp_model,
-            dataLoader_train_aug,
+            model,
+            self.dataLoader_train_aug,
             optimizer,
             scheduler,
-            val_loader=dataLoader_dev,
+            val_loader=self.dataLoader_dev,
             epochs=aug_epochs,
             print_every=print_every,
             loss_function=loss_function,
-            device=device,
+            device=self.device,
         )
 
         train_part(
-            nlp_model,
-            dataLoader_train,
+            model,
+            self.dataLoader_train,
             optimizer,
             scheduler,
-            val_loader=dataLoader_dev,
+            val_loader=self.dataLoader_dev,
             epochs=params["epochs"] - aug_epochs,
             print_every=print_every,
             loss_function=loss_function,
-            device=device,
+            device=self.device,
         )
 
     def run(self):
-
         self.reload_experiments()
+        for experiment in self.remaining_experiments:
+            model = build_model(experiment)
+            self.train(model, experiment)

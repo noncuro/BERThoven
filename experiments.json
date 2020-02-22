@@ -7,10 +7,11 @@
     "loss_function":"l1_smooth",
     "combine_inputs": "concat",
     "epochs": 3,
-    "dropout": 0,
+    "dropout": 0.2,
     "upsampling": 0.66,
     "masking":  "no",
     "extra_token": "no",
-    "warmup_proportion": 0.1
+    "warmup_proportion": 0.1,
+    "cls": true
   }
 ]

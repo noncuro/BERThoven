@@ -105,9 +105,9 @@ class ExperimentRunner:
             print("Dataset already downloaded")
 
     def load_dataset(self):
-        train_df = import_file("train")
-        dev_df = import_file("dev")
-        test_df = import_file("test")
+        train_df = import_file("train", path=self.dataset_path)
+        dev_df = import_file("dev", path=self.dataset_path)
+        test_df = import_file("test", path=self.dataset_path)
         train_df_aug = augment_dataset(
             train_df,
             lambda score: score < -1,
@@ -204,6 +204,7 @@ class ExperimentRunner:
             model = build_model(experiment)
             mae, mse, pr = self.train(model, experiment)
             self.save_experiment(experiment, mae, mse, pr)
+
 
 if __name__ == "__main__":
     experiments_file = "files.zip"

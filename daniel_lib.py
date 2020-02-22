@@ -244,6 +244,7 @@ def check_accuracy(loader, model, device, max_sample_size=None):
         pr, _ = scipy.stats.pearsonr(scores_epoch, truth_epoch)
 
         print("Mean Absolute Error: %.3f, Mean Squared Error %.3f, Pearson: %.3f" % (mse, mae, pr))
+    return mse, mae, pr
 
 
 def train_part(
@@ -310,7 +311,7 @@ def train_part(
         check_accuracy(val_loader, model, device=device)
         # print("Saving the model.")
         # torch.save(model.state_dict(), 'nlp_model.pt')
-
+    return check_accuracy(val_loader, model, device=device)
 
 def get_test_labels(loader, model, device):
     model = model.to(device=device)

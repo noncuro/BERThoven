@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from IPython.display import HTML, display
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-
+import time
 from tqdm import tqdm
 from transformers import (
     AdamW,
@@ -33,6 +33,7 @@ def get_new_bert_model():
         bm.load_state_dict(torch.load("./bert_weights/bert-base-untrained.pth"))
     assert is_model_new(bm)
     print("New Bert Model instantiated.")
+    time.sleep(0.1)
     return bm
 
 def is_model_new(bm:AutoModel):
@@ -180,7 +181,7 @@ def get_tokenized_with_mask(dataframe):
 
 
 def getDataLoader(dataframe, batch_size=32, test=False):
-    ds = BERTHovenDataset(dataframe)
+    ds = BERTHovenDataset(dataframe,test=test)
     return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(not test))
 
 
@@ -353,6 +354,7 @@ def train_part(
         max_grad_norm=1.0,
         print_every=75,
         loss_function=F.mse_loss,
+        return_metrics = True
 ):
     # see F.smooth_l1_loss
 
@@ -362,6 +364,7 @@ def train_part(
     model = model.to(device=device)  # move the model parameters to CPU/GPU
     for e in range(epochs):
         print(f"Iterations per epoch:{len(dataloader)}")
+        time.sleep(0.1)
         for t, (x1, x1_mask, x2, x2_mask, y) in tqdm(enumerate(dataloader)):
             model.train()  # put model to training mode
             x1 = x1.to(device=device, dtype=torch.long)
@@ -413,6 +416,7 @@ def train_part(
     return check_accuracy(val_loader, model, device=device)
 
 
+
 def get_test_labels(loader, model, device):
     model = model.to(device=device)
     num_correct = 0
@@ -430,3 +434,10 @@ def get_test_labels(loader, model, device):
             scores = model.forward((x1, x1_mask), (x2, x2_mask))
             all_scores += [i.item() for i in scores]
     return all_scores
+
+def writeScores(scores):
+    fn = "predictions.txt"
+    print("")
+    with open(fn, 'w') as output_file:
+        for idx,x in enumerate(scores):
+            output_file.write(f"{x}\n")

@@ -24,7 +24,7 @@ from transformers import (
 
 
 def exp_to_string(experiment):
-    return " ".join([f"{key} = {value}" for key, value in experiment.items()])
+    return "; ".join([f"{key} = {value}" for key, value in experiment.items()])
 
 
 def experiments_match(exp1, exp2):

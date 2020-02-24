@@ -20,7 +20,21 @@ from transformers import (
 )
 
 tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
-bert_model = AutoModel.from_pretrained("bert-base-multilingual-cased")
+
+
+def get_new_bert_model():
+    if not os.path.exists("bert_weights"):
+        os.mkdir("bert_weights")
+        bm = AutoModel.from_pretrained("bert-base-multilingual-cased", force_download=True)
+        bm.save_pretrained("./bert_model/")
+        torch.save(bm.state_dict(), "./bert_weights/bert-base-untrained.pth")
+    else:
+        bm = AutoModel.from_pretrained("./bert_weights/")
+        bm.load_state_dict(torch.load("./bert_weights/bert-base-untrained.pth"))
+    l = list(bm.parameters())
+    assert l[6][13].item() == -0.11790694296360016
+    assert l[-5][10].item() == -0.015535828657448292
+    return bm
 
 
 class BERTHovenDataset(Dataset):
@@ -96,7 +110,7 @@ def import_file(prefix, path="./"):
     scores = None
     if prefix != "test":
         with open(
-            os.path.join(path, f"{prefix}.ende.scores"), "r", encoding="utf-8"
+                os.path.join(path, f"{prefix}.ende.scores"), "r", encoding="utf-8"
         ) as f:
             scores = [float(line.strip()) for line in f]
     return pd.DataFrame({"src": src, "mt": mt, "scores": scores})
@@ -126,16 +140,16 @@ def get_tokenized(dataframe):
         dataframe.apply(
             lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1
         )
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+            .apply(lambda a: tokenizer.tokenize(a))
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
         dataframe.apply(
             lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1
         )
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+            .apply(lambda a: tokenizer.tokenize(a))
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
     return input1, input2
 
@@ -145,18 +159,18 @@ def get_tokenized_with_mask(dataframe):
         dataframe.apply(
             lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1
         )
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: add_mask(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+            .apply(lambda a: tokenizer.tokenize(a))
+            .apply(lambda a: add_mask(a))
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
         dataframe.apply(
             lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1
         )
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: add_mask(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+            .apply(lambda a: tokenizer.tokenize(a))
+            .apply(lambda a: add_mask(a))
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     return input1, input2
@@ -242,18 +256,18 @@ class BERThoven(nn.Module):
     """
 
     def __init__(
-        self,
-        sum_outputs=False,
-        concat_outputs=False,
-        cls=False,
-        dropout=True,
-        dropout_prob=0.5,
+            self,
+            sum_outputs=False,
+            concat_outputs=False,
+            cls=False,
+            dropout=True,
+            dropout_prob=0.5,
     ):
         super(BERThoven, self).__init__()
         if sum_outputs and concat_outputs:
             raise RuntimeError("You can't both sum and concatenate outputs.")
 
-        self.bert_layers = AutoModel.from_pretrained("bert-base-multilingual-cased")
+        self.bert_layers = get_new_bert_model()
         bert_out_features = self.bert_layers.pooler.dense.out_features
         if concat_outputs:
             self.lin_layer = nn.Linear(bert_out_features * 2, 1)
@@ -326,16 +340,16 @@ def check_accuracy(loader, model, device, max_sample_size=None):
 
 
 def train_part(
-    model,
-    dataloader,
-    optimizer,
-    scheduler,
-    val_loader,
-    device,
-    epochs=1,
-    max_grad_norm=1.0,
-    print_every=75,
-    loss_function=F.mse_loss,
+        model,
+        dataloader,
+        optimizer,
+        scheduler,
+        val_loader,
+        device,
+        epochs=1,
+        max_grad_norm=1.0,
+        print_every=75,
+        loss_function=F.mse_loss,
 ):
     # see F.smooth_l1_loss
 
@@ -343,7 +357,7 @@ def train_part(
     momentum = 0.05
 
     model = model.to(device=device)  # move the model parameters to CPU/GPU
-    for e in range(epochs):
+    for e in tqdm(range(epochs)):
         print(f"Iterations per epoch:{len(dataloader)}")
         for t, (x1, x1_mask, x2, x2_mask, y) in enumerate(dataloader):
             model.train()  # put model to training mode

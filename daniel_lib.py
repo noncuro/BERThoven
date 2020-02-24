@@ -9,7 +9,7 @@ from IPython.display import HTML, display
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 import time
-from tqdm import tqdm
+from tqdm import tqdm_notebook as tqdm
 from transformers import (
     AdamW,
     AutoModel,
@@ -50,7 +50,7 @@ class BERTHovenDataset(Dataset):
         input1, input2 = get_tokenized(dataframe)
         x1, x1_mask = pad(input1)
         x2, x2_mask = pad(input2)
-        for idx, _ in enumerate(tqdm(range(len(x1)), desc="Loading Data")):
+        for idx, _ in enumerate(tqdm(range(len(x1)), desc="Loading Data", leave=False)):
             sample = {
                 "x1": x1[idx],
                 "x1_mask": x1_mask[idx],
@@ -317,7 +317,7 @@ def check_accuracy(loader, model, device, max_sample_size=None):
         scores_epoch = []
         truth_epoch = []
 
-        for x1, x1_mask, x2, x2_mask, y in tqdm(loader, "Checking accuracy"):
+        for x1, x1_mask, x2, x2_mask, y in tqdm(loader, "Checking accuracy", leave=False):
             truth_epoch += y.tolist()
             x1 = x1.to(device=device, dtype=torch.long)
             x1_mask = x1_mask.to(device=device, dtype=torch.long)
@@ -332,15 +332,15 @@ def check_accuracy(loader, model, device, max_sample_size=None):
             num_samples += scores.size(0)
             if max_sample_size != None and num_samples >= num_samples:
                 break
-        mse = sqr_error / num_samples
+        rmse = (sqr_error / num_samples)**0.5
         mae = abs_error / num_samples
         pr, _ = scipy.stats.pearsonr(scores_epoch, truth_epoch)
 
         print(
-            "Mean Absolute Error: %.3f, Mean Squared Error %.3f, Pearson: %.3f"
-            % (mse, mae, pr)
+            "Mean Absolute Error: %.3f, Root Mean Squared Error %.3f, Pearson: %.3f"
+            % (rmse, mae, pr)
         )
-    return mse, mae, pr
+    return rmse, mae, pr
 
 
 def train_part(
@@ -365,7 +365,7 @@ def train_part(
     for e in range(epochs):
         print(f"Iterations per epoch:{len(dataloader)}")
         time.sleep(0.1)
-        for t, (x1, x1_mask, x2, x2_mask, y) in tqdm(enumerate(dataloader)):
+        for t, (x1, x1_mask, x2, x2_mask, y) in tqdm(enumerate(dataloader),total=len(dataloader)):
             model.train()  # put model to training mode
             x1 = x1.to(device=device, dtype=torch.long)
             x1_mask = x1_mask.to(device=device, dtype=torch.long)
@@ -402,8 +402,8 @@ def train_part(
             if t % print_every == 0:
                 print()
                 print(
-                    "Epoch: %d,\tIteration %d,\tloss = %.4f,\tavg_loss = %.4f"
-                    % (e, t, l, avg_loss),
+                    "Epoch: %d,\tIteration %d,\tMoving avg loss = %.4f"
+                    % (e, t, avg_loss),
                     end="\t",
                 )
             # print(".", end="")

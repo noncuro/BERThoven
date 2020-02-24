@@ -222,8 +222,6 @@ def get_sentence_embeddings(dataframe, bert_model, device, test=False, batch_siz
             out = [(o1[i], o2[i]) for i in range(len(o1))]
             l += out
 
-            progress_bar.update(progress(i, z))
-
     if not test:
         l = list(zip(l, dataframe.scores))
     return torch.utils.data.DataLoader(l, batch_size=batch_size, shuffle=(not test))
@@ -327,6 +325,15 @@ def check_accuracy(loader, model, device, max_sample_size=None):
     return rmse, mae, pr
 
 
+def moving_average_smoothing(original, mo=0.2):
+    l = []
+    ma = original[0]
+    for i in original:
+        ma = ma * (1 - mo) + i * mo
+        l.append(ma)
+    return l
+
+
 def train_part(
         model,
         dataloader,
@@ -410,7 +417,7 @@ def train_part(
                 print()
                 if avg_val_loss is not None:
                     print(
-                        "Epoch: %d,\tIteration %d,\tMoving avg loss = %.4f\tM.A. val loss = %.4f"
+                        "Epoch: %d,\tIteration %d,\tMoving avg loss = %.4f\tval loss = %.4f"
                         % (e, t, avg_loss, avg_val_loss),
                         end="\t",
                     )
@@ -429,10 +436,13 @@ def train_part(
     if return_metrics:
         return check_accuracy(val_loader, model, device=device)
     if return_losses:
-        plt.plot(np.linspace(0, 2, len(t_losses)), t_losses, label="Training loss")
-        plt.plot(np.linspace(0, 2, len(v_losses)), v_losses, label="Validation loss")
+        plt.plot(np.linspace(0, epochs, len(t_losses)), moving_average_smoothing(t_losses, 0.05),
+                 label="Training loss")
+        plt.plot(np.linspace(0, epochs, len(v_losses)), moving_average_smoothing(v_losses, 0.05),
+                 label="Validation loss")
         plt.legend()
         plt.show()
+        return t_losses, v_losses
 
 
 def get_test_labels(loader, model, device):

@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import zipfile
+from functools import partial
 
 import requests
 import torch
@@ -11,6 +12,7 @@ from daniel_lib import (
     BERThoven,
     augment_dataset,
     getDataLoader,
+    getDataLoader_masked,
     import_file,
     train_part,
 )
@@ -98,7 +100,7 @@ class ExperimentRunner:
         else:
             print("Dataset already downloaded")
 
-    def load_dataset(self):
+    def load_dataset(self, use_mask):
         train_df = import_file("train", path=self.dataset_path)
         dev_df = import_file("dev", path=self.dataset_path)
         test_df = import_file("test", path=self.dataset_path)
@@ -111,10 +113,15 @@ class ExperimentRunner:
             lambda score: score > 1.3,
         )
 
-        self.dataLoader_train = getDataLoader(train_df, batch_size=32)
-        self.dataLoader_train_aug = getDataLoader(train_df_aug, batch_size=32)
-        self.dataLoader_dev = getDataLoader(dev_df, batch_size=32)
-        self.dataLoader_test = getDataLoader(test_df, batch_size=32, test=True)
+        gdl = partial(
+            (getDataLoader_masked if use_mask else getDataLoader), batch_size=32
+        )
+        self.dataLoader_train = gdl(train_df, batch_size=32)
+        self.dataLoader_train_aug = gdl(train_df_aug, batch_size=32)
+        self.dataLoader_dev = gdl(dev_df, batch_size=32)
+        self.dataLoader_test = getDataLoader(
+            test_df, batch_size=32, test=True
+        )  # Test data is never masked
 
     def reload_experiments(self):
         if not os.path.isfile(self.experiments_file):
@@ -196,8 +203,6 @@ class ExperimentRunner:
     def run(self):
         print("Looking for dataset...")
         self.maybe_download()
-        print("Loading datasets into memory...")
-        self.load_dataset()
         print("Loading experiments file...")
         self.reload_experiments()
         print(f"Found {len(self.remaining_experiments)} experiments to run")
@@ -206,6 +211,8 @@ class ExperimentRunner:
             print("=" * 30)
             print(f"Experiment {i+1} of {len(self.remaining_experiments)}")
             print(exp_to_string(experiment))
+            print("Loading datasets into memory...")
+            self.load_dataset(use_mask=experiment["masking"])
             model = build_model(experiment)
             mae, mse, pr = self.train(model, experiment)
             self.save_experiment(experiment, mae, mse, pr)

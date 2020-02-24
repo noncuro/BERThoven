@@ -26,7 +26,7 @@ def get_new_bert_model():
     if not os.path.exists("bert_weights"):
         os.mkdir("bert_weights")
         bm = AutoModel.from_pretrained("bert-base-multilingual-cased", force_download=True)
-        bm.save_pretrained("./bert_model/")
+        bm.save_pretrained("./bert_weights/")
         torch.save(bm.state_dict(), "./bert_weights/bert-base-untrained.pth")
     else:
         bm = AutoModel.from_pretrained("./bert_weights/")

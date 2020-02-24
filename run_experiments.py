@@ -100,7 +100,7 @@ class ExperimentRunner:
         else:
             print("Dataset already downloaded")
 
-    def load_dataset(self, use_mask):
+    def load_dataset(self):
         train_df = import_file("train", path=self.dataset_path)
         dev_df = import_file("dev", path=self.dataset_path)
         test_df = import_file("test", path=self.dataset_path)
@@ -113,15 +113,17 @@ class ExperimentRunner:
             lambda score: score > 1.3,
         )
 
-        gdl = partial(
-            (getDataLoader_masked if use_mask else getDataLoader), batch_size=32
+        self.dataLoader_train = getDataLoader(train_df, batch_size=32)
+        self.dataLoader_train_aug = getDataLoader(train_df_aug, batch_size=32)
+        self.dataLoader_dev = getDataLoader(dev_df, batch_size=32)
+        self.dataLoader_test = getDataLoader(test_df, batch_size=32, test=True)
+
+        # Masked versions of the dataset (load both into memory to avoid recalculation)
+        self.dataLoader_train_masked = getDataLoader_masked(train_df, batch_size=32)
+        self.dataLoader_train_aug_masked = getDataLoader_masked(
+            train_df_aug, batch_size=32
         )
-        self.dataLoader_train = gdl(train_df, batch_size=32)
-        self.dataLoader_train_aug = gdl(train_df_aug, batch_size=32)
-        self.dataLoader_dev = gdl(dev_df, batch_size=32)
-        self.dataLoader_test = getDataLoader(
-            test_df, batch_size=32, test=True
-        )  # Test data is never masked
+        self.dataLoader_dev_masked = getDataLoader_masked(dev_df, batch_size=32)
 
     def reload_experiments(self):
         if not os.path.isfile(self.experiments_file):
@@ -173,13 +175,25 @@ class ExperimentRunner:
 
         aug_epochs = params["epochs"] - 1
 
+        aug_dataloader_train = (
+            self.dataLoader_train_aug_masked
+            if params["masking"]
+            else self.dataLoader_train_aug
+        )
+        aug_dataloader_val = (
+            self.dataLoader_dev_masked if params["masking"] else self.dataLoader_dev
+        )
+        orig_dataloader_train = (
+            self.dataLoader_train_masked if params["masking"] else self.dataLoader_train
+        )
+
         if aug_epochs > 0:
             train_part(
                 model,
-                self.dataLoader_train_aug,
+                aug_dataloader_train,
                 optimizer,
                 scheduler,
-                val_loader=self.dataLoader_dev,
+                val_loader=aug_dataloader_val,
                 epochs=aug_epochs,
                 print_every=print_every,
                 loss_function=loss_function,
@@ -188,10 +202,10 @@ class ExperimentRunner:
 
         final_mae, final_mse, final_pr = train_part(
             model,
-            self.dataLoader_train,
+            orig_dataloader_train,
             optimizer,
             scheduler,
-            val_loader=self.dataLoader_dev,
+            val_loader=aug_dataloader_val,
             epochs=params["epochs"] - aug_epochs,
             print_every=print_every,
             loss_function=loss_function,
@@ -203,6 +217,8 @@ class ExperimentRunner:
     def run(self):
         print("Looking for dataset...")
         self.maybe_download()
+        print("Loading datasets into memory...")
+        self.load_dataset()
         print("Loading experiments file...")
         self.reload_experiments()
         print(f"Found {len(self.remaining_experiments)} experiments to run")
@@ -211,8 +227,6 @@ class ExperimentRunner:
             print("=" * 30)
             print(f"Experiment {i+1} of {len(self.remaining_experiments)}")
             print(exp_to_string(experiment))
-            print("Loading datasets into memory...")
-            self.load_dataset(use_mask=experiment["masking"])
             model = build_model(experiment)
             mae, mse, pr = self.train(model, experiment)
             self.save_experiment(experiment, mae, mse, pr)

@@ -5,10 +5,10 @@ import pandas as pd
 import scipy
 import torch
 import torch.nn.functional as F
-from IPython.display import HTML, display
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 import time
+import matplotlib.pyplot as plt
 from tqdm import tqdm_notebook as tqdm
 from transformers import (
     AdamW,
@@ -28,15 +28,17 @@ def get_new_bert_model():
         bm = AutoModel.from_pretrained("bert-base-multilingual-cased", force_download=True)
         bm.save_pretrained("./bert_weights/")
         torch.save(bm.state_dict(), "./bert_weights/bert-base-untrained.pth")
+        print("Bert Model downloaded.")
     else:
         bm = AutoModel.from_pretrained("./bert_weights/")
         bm.load_state_dict(torch.load("./bert_weights/bert-base-untrained.pth"))
+        print("Loaded pre-trained Bert weights.")
     assert is_model_new(bm)
-    print("New Bert Model instantiated.")
     time.sleep(0.1)
     return bm
 
-def is_model_new(bm:AutoModel):
+
+def is_model_new(bm: AutoModel):
     l = list(bm.parameters())
     return l[6][13].item() == -0.11790694296360016 and l[-5][10].item() == -0.015535828657448292
 
@@ -181,7 +183,7 @@ def get_tokenized_with_mask(dataframe):
 
 
 def getDataLoader(dataframe, batch_size=32, test=False):
-    ds = BERTHovenDataset(dataframe,test=test)
+    ds = BERTHovenDataset(dataframe, test=test)
     return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(not test))
 
 
@@ -198,22 +200,6 @@ def removeOutliers(dataframe, negLimit=-3, posLimit=2):
     return dataframe
 
 
-def progress(value, max=100):
-    return HTML(
-        """
-        <progress
-            value='{value}'
-            max='{max}',
-            style='width: 100%'
-        >
-            {value}
-        </progress>
-    """.format(
-            value=value, max=max
-        )
-    )
-
-
 def get_sentence_embeddings(dataframe, bert_model, device, test=False, batch_size=32):
     print("Tokenizing data...")
     input1, input2 = get_tokenized(dataframe)
@@ -225,8 +211,6 @@ def get_sentence_embeddings(dataframe, bert_model, device, test=False, batch_siz
 
     l = []
     z = len(list(loader))
-
-    progress_bar = display(progress(0, z), display_id=True)
 
     with torch.no_grad():
         for i, (x1, x2) in enumerate(loader):
@@ -332,7 +316,7 @@ def check_accuracy(loader, model, device, max_sample_size=None):
             num_samples += scores.size(0)
             if max_sample_size != None and num_samples >= num_samples:
                 break
-        rmse = (sqr_error / num_samples)**0.5
+        rmse = (sqr_error / num_samples) ** 0.5
         mae = abs_error / num_samples
         pr, _ = scipy.stats.pearsonr(scores_epoch, truth_epoch)
 
@@ -354,18 +338,24 @@ def train_part(
         max_grad_norm=1.0,
         print_every=75,
         loss_function=F.mse_loss,
-        return_metrics = True
+        return_metrics=True,
+        val_every=None,
+        return_losses=False
 ):
     # see F.smooth_l1_loss
 
     avg_loss = None
+    avg_val_loss = None
     momentum = 0.05
+
+    t_losses = []
+    v_losses = []
 
     model = model.to(device=device)  # move the model parameters to CPU/GPU
     for e in range(epochs):
         print(f"Iterations per epoch:{len(dataloader)}")
         time.sleep(0.1)
-        for t, (x1, x1_mask, x2, x2_mask, y) in tqdm(enumerate(dataloader),total=len(dataloader)):
+        for t, (x1, x1_mask, x2, x2_mask, y) in tqdm(enumerate(dataloader), total=len(dataloader)):
             model.train()  # put model to training mode
             x1 = x1.to(device=device, dtype=torch.long)
             x1_mask = x1_mask.to(device=device, dtype=torch.long)
@@ -394,27 +384,55 @@ def train_part(
 
             scheduler.step()
             l = loss.item()
+            t_losses.append(l)
             if avg_loss is None:
                 avg_loss = l
             else:
                 avg_loss = l * momentum + avg_loss * (1 - momentum)
 
+            if val_every is not None and t % val_every == 0:
+                with torch.no_grad():
+                    (x1, x1_mask, x2, x2_mask, y) = next(iter(val_loader))
+                    x1 = x1.to(device=device, dtype=torch.long)
+                    x1_mask = x1_mask.to(device=device, dtype=torch.long)
+                    x2 = x2.to(device=device, dtype=torch.long)
+                    x2_mask = x2_mask.to(device=device, dtype=torch.long)
+                    y = y.to(device=device, dtype=torch.float32)
+                    scores = model.forward((x1, x1_mask), (x2, x2_mask))
+                    l_val = loss_function(scores, y).item()
+                    v_losses.append(l_val)
+                    if avg_val_loss is None:
+                        avg_val_loss = l_val
+                    else:
+                        avg_val_loss = l_val * momentum + avg_val_loss * (1 - momentum)
+
             if t % print_every == 0:
                 print()
-                print(
-                    "Epoch: %d,\tIteration %d,\tMoving avg loss = %.4f"
-                    % (e, t, avg_loss),
-                    end="\t",
-                )
+                if avg_val_loss is not None:
+                    print(
+                        "Epoch: %d,\tIteration %d,\tMoving avg loss = %.4f\tM.A. val loss = %.4f"
+                        % (e, t, avg_loss, avg_val_loss),
+                        end="\t",
+                    )
+                else:
+                    print(
+                        "Epoch: %d,\tIteration %d,\tMoving avg loss = %.4f"
+                        % (e, t, avg_loss),
+                        end="\t",
+                    )
             # print(".", end="")
         print()
-        print("Avg loss %.3f" % (avg_loss))
         print("Checking accuracy on dev:")
         check_accuracy(val_loader, model, device=device)
         # print("Saving the model.")
         # torch.save(model.state_dict(), 'nlp_model.pt')
-    return check_accuracy(val_loader, model, device=device)
-
+    if return_metrics:
+        return check_accuracy(val_loader, model, device=device)
+    if return_losses:
+        plt.plot(np.linspace(0, 2, len(t_losses)), t_losses, label="Training loss")
+        plt.plot(np.linspace(0, 2, len(v_losses)), v_losses, label="Validation loss")
+        plt.legend()
+        plt.show()
 
 
 def get_test_labels(loader, model, device):
@@ -435,9 +453,10 @@ def get_test_labels(loader, model, device):
             all_scores += [i.item() for i in scores]
     return all_scores
 
+
 def writeScores(scores):
     fn = "predictions.txt"
     print("")
     with open(fn, 'w') as output_file:
-        for idx,x in enumerate(scores):
+        for idx, x in enumerate(scores):
             output_file.write(f"{x}\n")

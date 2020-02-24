@@ -325,13 +325,14 @@ def check_accuracy(loader, model, device, max_sample_size=None):
     return rmse, mae, pr
 
 
-def moving_average_smoothing(original, mo=0.2):
-    l = []
-    ma = original[0]
-    for i in original:
-        ma = ma * (1 - mo) + i * mo
-        l.append(ma)
-    return l
+def smoothing(l, w_size=3):
+    l2 = []
+    for i in range(0, len(l) - 2):
+        l2.append(
+            np.mean(l[i - w_size + 1:i])
+        )
+        x = np.linspace(0, 1, len(l2))
+    return x, l2
 
 
 def train_part(
@@ -436,10 +437,10 @@ def train_part(
     if return_metrics:
         return check_accuracy(val_loader, model, device=device)
     if return_losses:
-        plt.plot(np.linspace(0, epochs, len(t_losses)), moving_average_smoothing(t_losses, 0.05),
-                 label="Training loss")
-        plt.plot(np.linspace(0, epochs, len(v_losses)), moving_average_smoothing(v_losses, 0.05),
-                 label="Validation loss")
+        px, py = smoothing(t_losses, 6)
+        plt.plot(px, py, label="Training loss")
+        px, py = smoothing(v_losses, 3)
+        plt.plot(px, py, label="Validation loss")
         plt.legend()
         plt.show()
         return t_losses, v_losses

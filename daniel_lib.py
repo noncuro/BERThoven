@@ -31,10 +31,13 @@ def get_new_bert_model():
     else:
         bm = AutoModel.from_pretrained("./bert_weights/")
         bm.load_state_dict(torch.load("./bert_weights/bert-base-untrained.pth"))
-    l = list(bm.parameters())
-    assert l[6][13].item() == -0.11790694296360016
-    assert l[-5][10].item() == -0.015535828657448292
+    assert is_model_new(bm)
+    print("New Bert Model instantiated.")
     return bm
+
+def is_model_new(bm:AutoModel):
+    l = list(bm.parameters())
+    return l[6][13].item() == -0.11790694296360016 and l[-5][10].item() == -0.015535828657448292
 
 
 class BERTHovenDataset(Dataset):
@@ -313,7 +316,7 @@ def check_accuracy(loader, model, device, max_sample_size=None):
         scores_epoch = []
         truth_epoch = []
 
-        for x1, x1_mask, x2, x2_mask, y in loader:
+        for x1, x1_mask, x2, x2_mask, y in tqdm(loader, "Checking accuracy"):
             truth_epoch += y.tolist()
             x1 = x1.to(device=device, dtype=torch.long)
             x1_mask = x1_mask.to(device=device, dtype=torch.long)
@@ -357,9 +360,9 @@ def train_part(
     momentum = 0.05
 
     model = model.to(device=device)  # move the model parameters to CPU/GPU
-    for e in tqdm(range(epochs)):
+    for e in range(epochs):
         print(f"Iterations per epoch:{len(dataloader)}")
-        for t, (x1, x1_mask, x2, x2_mask, y) in enumerate(dataloader):
+        for t, (x1, x1_mask, x2, x2_mask, y) in tqdm(enumerate(dataloader)):
             model.train()  # put model to training mode
             x1 = x1.to(device=device, dtype=torch.long)
             x1_mask = x1_mask.to(device=device, dtype=torch.long)
@@ -398,9 +401,9 @@ def train_part(
                 print(
                     "Epoch: %d,\tIteration %d,\tloss = %.4f,\tavg_loss = %.4f"
                     % (e, t, l, avg_loss),
-                    end="",
+                    end="\t",
                 )
-            print(".", end="")
+            # print(".", end="")
         print()
         print("Avg loss %.3f" % (avg_loss))
         print("Checking accuracy on dev:")

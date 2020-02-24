@@ -329,7 +329,7 @@ def smoothing(l, w_size=3):
     l2 = []
     for i in range(0, len(l) - 2):
         l2.append(
-            np.mean(l[i - w_size + 1:i])
+            np.mean(l[i:i+w_size])
         )
         x = np.linspace(0, 1, len(l2))
     return x, l2
@@ -437,10 +437,10 @@ def train_part(
     if return_metrics:
         return check_accuracy(val_loader, model, device=device)
     if return_losses:
-        px, py = smoothing(t_losses, 6)
-        plt.plot(px, py, label="Training loss")
-        px, py = smoothing(v_losses, 3)
-        plt.plot(px, py, label="Validation loss")
+        px, py = smoothing(t_losses, 30)
+        plt.plot(epochs*px, py, label="Training loss")
+        px, py = smoothing(v_losses, 20)
+        plt.plot(epochs*px, py, label="Validation loss")
         plt.legend()
         plt.show()
         return t_losses, v_losses

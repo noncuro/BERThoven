@@ -184,7 +184,7 @@ def get_tokenized_with_mask(dataframe):
     return input1, input2
 
 
-def getDataLoader(dataframe, batch_size=32, test=False, preprocessor=None, fit=False):
+def prepro_df(dataframe, preprocessor, fit):
     if preprocessor:
         dataframe = dataframe.copy()
         scores = dataframe.scores.to_numpy().reshape(-1, 1)
@@ -193,11 +193,16 @@ def getDataLoader(dataframe, batch_size=32, test=False, preprocessor=None, fit=F
         else:
             scores = preprocessor.transform(scores)
         dataframe.scores = scores
+    return dataframe
+
+def getDataLoader(dataframe, batch_size=32, test=False, preprocessor=None, fit=False):
+    dataframe = prepro_df(dataframe, preprocessor, fit)
     ds = BERTHovenDataset(dataframe, test=test)
     return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(not test))
 
 
-def getDataLoader_masked(dataframe, batch_size=32, test=False):
+def getDataLoader_masked(dataframe, batch_size=32, test=False, preprocessor=None, fit=False):
+    dataframe = prepro_df(dataframe, preprocessor, fit)
     masked_df = MaskedDataset(dataframe)
     return torch.utils.data.DataLoader(
         masked_df, batch_size=batch_size, shuffle=(not test)
@@ -481,7 +486,8 @@ def get_test_labels(loader, model, device, preprocessor=None):
             scores = model.forward((x1, x1_mask), (x2, x2_mask))
             all_scores += [i.item() for i in scores]
     if preprocessor is not None:
-        all_scores = [preprocessor.inverse_transform(i) for i in all_scores]
+        all_scores = np.array(all_scores).reshape(-1,1)
+        all_scores = preprocessor.inverse_transform(all_scores).reshape(-1)
     return all_scores
 
 

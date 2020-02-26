@@ -5,11 +5,13 @@ import pandas as pd
 import scipy
 import torch
 import torch.nn.functional as F
+from sklearn.preprocessing import QuantileTransformer
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 import time
 import matplotlib.pyplot as plt
 from tqdm import tqdm_notebook as tqdm
+from sklearn import preprocessing
 from transformers import (
     AdamW,
     AutoModel,
@@ -182,7 +184,15 @@ def get_tokenized_with_mask(dataframe):
     return input1, input2
 
 
-def getDataLoader(dataframe, batch_size=32, test=False):
+def getDataLoader(dataframe, batch_size=32, test=False, preprocessor=None, fit=False):
+    if preprocessor:
+        dataframe = dataframe.copy()
+        scores = dataframe.scores.to_numpy().reshape(-1, 1)
+        if fit:
+            scores = preprocessor.fit_transform(scores)
+        else:
+            scores = preprocessor.transform(scores)
+        dataframe.scores = scores
     ds = BERTHovenDataset(dataframe, test=test)
     return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(not test))
 
@@ -283,11 +293,12 @@ class BERThoven(nn.Module):
                 out1x = out1a + out1b
 
         out2 = self.droupout_layer(out1x) if self.droupout else out1x
-        out3 = self.lin_layer(out2)
-        return out3.squeeze()
+        out2 = self.lin_layer(out2)
+        out2 = torch.sigmoid(out2)
+        return out2.squeeze()
 
 
-def check_accuracy(loader, model, device, max_sample_size=None):
+def check_accuracy(loader, model, device, max_sample_size=None, preprocessor=None):
     model = model.to(device=device)
     num_correct = 0
     num_samples = 0
@@ -305,13 +316,19 @@ def check_accuracy(loader, model, device, max_sample_size=None):
             x1_mask = x1_mask.to(device=device, dtype=torch.long)
             x2 = x2.to(device=device, dtype=torch.long)
             x2_mask = x2_mask.to(device=device, dtype=torch.long)
-            y = y.to(device=device, dtype=torch.float32)
             scores = model.forward((x1, x1_mask), (x2, x2_mask))
-            scores_epoch += scores.tolist()
 
-            abs_error += (scores - y).abs().sum().item()
+            scores = scores.cpu().numpy().reshape(-1, 1)
+            y = y.cpu().numpy().reshape(-1, 1)
+
+            if preprocessor is not None:
+                scores = preprocessor.inverse_transform(scores)
+                y = preprocessor.inverse_transform(y)
+            scores_epoch += scores.reshape(-1).tolist()
+
+            abs_error += np.abs(scores - y).sum().item()
             sqr_error += ((scores - y) ** 2).sum().item()
-            num_samples += scores.size(0)
+            num_samples += scores.shape[0]
             if max_sample_size != None and num_samples >= num_samples:
                 break
         rmse = (sqr_error / num_samples) ** 0.5
@@ -329,7 +346,7 @@ def smoothing(l, w_size=3):
     l2 = []
     for i in range(0, len(l) - 2):
         l2.append(
-            np.mean(l[i:i+w_size])
+            np.mean(l[i:i + w_size])
         )
         x = np.linspace(0, 1, len(l2))
     return x, l2
@@ -348,7 +365,8 @@ def train_part(
         loss_function=F.mse_loss,
         return_metrics=True,
         val_every=None,
-        return_losses=False
+        return_losses=False,
+        preprocessor: QuantileTransformer = None
 ):
     # see F.smooth_l1_loss
 
@@ -431,22 +449,22 @@ def train_part(
             # print(".", end="")
         print()
         print("Checking accuracy on dev:")
-        check_accuracy(val_loader, model, device=device)
+        check_accuracy(val_loader, model, device=device, preprocessor=preprocessor)
         # print("Saving the model.")
         # torch.save(model.state_dict(), 'nlp_model.pt')
     if return_metrics:
-        return check_accuracy(val_loader, model, device=device)
+        return check_accuracy(val_loader, model, device=device, preprocessor=preprocessor)
     if return_losses:
         px, py = smoothing(t_losses, 30)
-        plt.plot(epochs*px, py, label="Training loss")
+        plt.plot(epochs * px, py, label="Training loss")
         px, py = smoothing(v_losses, 20)
-        plt.plot(epochs*px, py, label="Validation loss")
+        plt.plot(epochs * px, py, label="Validation loss")
         plt.legend()
         plt.show()
         return t_losses, v_losses
 
 
-def get_test_labels(loader, model, device):
+def get_test_labels(loader, model, device, preprocessor=None):
     model = model.to(device=device)
     num_correct = 0
     num_samples = 0
@@ -462,6 +480,8 @@ def get_test_labels(loader, model, device):
             x2_mask = x2_mask.to(device=device, dtype=torch.long)
             scores = model.forward((x1, x1_mask), (x2, x2_mask))
             all_scores += [i.item() for i in scores]
+    if preprocessor is not None:
+        all_scores = [preprocessor.inverse_transform(i) for i in all_scores]
     return all_scores
 
 

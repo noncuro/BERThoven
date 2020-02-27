@@ -125,12 +125,12 @@ def import_file(prefix, path="./"):
             scores = [float(line.strip()) for line in f]
     return pd.DataFrame({"src": src, "mt": mt, "scores": scores})
 
-def import_train_dev():
+def import_train_dev(test_size=1/8):
     train_df = import_file("train")
     dev_df = import_file("dev")
     ct = pd.concat([train_df, dev_df])
 
-    return train_test_split(ct, shuffle=True, test_size=1000/8000)
+    return train_test_split(ct, shuffle=True, test_size=test_size)
 
 
 

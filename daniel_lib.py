@@ -205,6 +205,7 @@ def prepro_df(dataframe, preprocessor, fit):
         dataframe.scores = scores
     return dataframe
 
+
 def get_data_loader(dataframe, batch_size=32, test=False, preprocessor=None, fit=False):
     dataframe = prepro_df(dataframe, preprocessor, fit)
     ds = BERTHovenDataset(dataframe, test=test)
@@ -496,7 +497,7 @@ def get_test_labels(loader, model, device, preprocessor=None):
             scores = model.forward((x1, x1_mask), (x2, x2_mask))
             all_scores += [i.item() for i in scores]
     if preprocessor is not None:
-        all_scores = np.array(all_scores).reshape(-1,1)
+        all_scores = np.array(all_scores).reshape(-1, 1)
         all_scores = preprocessor.inverse_transform(all_scores).reshape(-1)
     return all_scores
 

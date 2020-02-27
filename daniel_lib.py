@@ -205,13 +205,13 @@ def prepro_df(dataframe, preprocessor, fit):
         dataframe.scores = scores
     return dataframe
 
-def getDataLoader(dataframe, batch_size=32, test=False, preprocessor=None, fit=False):
+def get_data_loader(dataframe, batch_size=32, test=False, preprocessor=None, fit=False):
     dataframe = prepro_df(dataframe, preprocessor, fit)
     ds = BERTHovenDataset(dataframe, test=test)
     return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(not test))
 
 
-def getDataLoader_masked(dataframe, batch_size=32, test=False, preprocessor=None, fit=False):
+def get_data_loader_masked(dataframe, batch_size=32, test=False, preprocessor=None, fit=False):
     dataframe = prepro_df(dataframe, preprocessor, fit)
     masked_df = MaskedDataset(dataframe)
     return torch.utils.data.DataLoader(
@@ -219,7 +219,7 @@ def getDataLoader_masked(dataframe, batch_size=32, test=False, preprocessor=None
     )
 
 
-def removeOutliers(dataframe, negLimit=-3, posLimit=2):
+def remove_outliers(dataframe, negLimit=-3, posLimit=2):
     dataframe.loc[dataframe.scores < negLimit, "scores"] = negLimit
     dataframe.loc[dataframe.scores > posLimit, "scores"] = posLimit
     return dataframe

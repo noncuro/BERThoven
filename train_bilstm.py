@@ -5,12 +5,57 @@ import torch.nn as nn
 from torch import optim
 
 
+class Tokenizer:
+    def __init__(self, vocab_file="vocab.txt", do_lower_case=True):
+        with open(vocab_file, "r", encoding="utf-8") as f:
+            self.vocab_size = len(f.readlines())
+        self.tk = FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
+
+    def tokenize(self, text):
+        return self.tk.tokenize(text)
+
+    def batch_tokenize(self, texts):
+        return [self.tokenize(text) for text in texts]
+
+    def convert_tokens_to_ids(self, tokens):
+        return self.tk.convert_tokens_to_ids(tokens)
+
+    def batch_convert_tokens_to_ids(self, texts):
+        return [self.convert_tokens_to_ids(tokens) for tokens in texts]
+
+
+class BiLSTMDataset(Dataset):
+    def __init__(self, dataframe, _tokenizer, test=False):
+        self.samples = []
+        self.test = test
+        src, mt = get_tokenized_one_way(dataframe, _tokenizer)
+        x1, _ = pad(src)
+        x2, _ = pad(mt)
+        for i, _ in enumerate(tqdm(range(len(x1)), desc="Loading Data", leave=False)):
+            if self.test:
+                self.samples.append((x1[i], x2[i]))
+            else:
+                self.samples.append((x1[i], x2[i], dataframe.iloc[i].scores))
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, item):
+        return self.samples[item]
+
+
 class TrainerBiLSTM:
     """Class responsible for training the Bi-LSTM architecture
     """
 
     def __init__(
-        self, encoder, decoder, batch_size, device, max_length, loss_function=nn.MSELoss()
+        self,
+        encoder,
+        decoder,
+        batch_size,
+        device,
+        max_length,
+        loss_function=nn.MSELoss(),
     ):
         """
         encoder: EncoderRNN type object. The encoder model to train
@@ -37,7 +82,6 @@ class TrainerBiLSTM:
         self.loss_function = loss_function
         print(7)
 
-
     def train_once(
         self, src_tensor, mt_tensor, score, encoder_optimizer, decoder_optimizer
     ):
@@ -50,7 +94,9 @@ class TrainerBiLSTM:
         """
         self.encoder.train()  # Set encoder to training mode
         self.decoder.train()  # Set decoder to training mode
-        encoder_hidden = self.encoder.init_hidden(self.batch_size)  # Set the encoder's initial state
+        encoder_hidden = self.encoder.init_hidden(
+            self.batch_size
+        )  # Set the encoder's initial state
 
         encoder_optimizer.zero_grad()  # Clean any extraneous gradients left for the encoder
         decoder_optimizer.zero_grad()  # Clean any extraneous gradients left for the decoder
@@ -147,3 +193,26 @@ class TrainerBiLSTM:
                 )
 
             return decoder_output
+
+
+def get_tokenized_one_way(dataframe, _tokenizer=tokenizer):
+    input1 = (
+        dataframe.apply(lambda a: a.src, axis=1)
+        .apply(lambda a: _tokenizer.tokenize(a))
+        .apply(lambda a: _tokenizer.convert_tokens_to_ids(a))
+    )
+
+    input2 = (
+        dataframe.apply(lambda a: a.mt, axis=1)
+        .apply(lambda a: _tokenizer.tokenize(a))
+        .apply(lambda a: _tokenizer.convert_tokens_to_ids(a))
+    )
+    return input1, input2
+
+
+def get_data_loader_bilstm(
+    dataframe, _tokenizer, batch_size=32, test=False, preprocessor=None, fit=False
+):
+    dataframe = prepro_df(dataframe, preprocessor, fit)
+    ds = BiLSTMDataset(dataframe, _tokenizer, test=test)
+    return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(not test))

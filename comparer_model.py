@@ -1,63 +1,8 @@
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
 
-from transformers import AdamW, AutoTokenizer
-from utils import pad
-
-tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
-# bert_model = AutoModel.from_pretrained("bert-base-multilingual-cased")
-
-
-def get_tokenized(dataframe):
-    input1 = (
-        dataframe.apply(lambda a: "[CLS] " + a.src, axis=1)
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
-    )
-    input2 = (
-        dataframe.apply(lambda a: "[CLS] " + a.mt, axis=1)
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
-    )
-    return input1, input2
-
-
-class ComparerDataset(Dataset):
-    """Dataset for image segmentation."""
-
-    def __init__(self, dataframe, test=False):
-        self.samples = []
-        self.test = test
-        input1, input2 = get_tokenized(dataframe)
-        x1, x1_mask = pad(input1)
-        x2, x2_mask = pad(input2)
-
-        for idx in x1.shape[0]:
-            sample = {
-                "x1": x1[idx],
-                "x1_mask": x1_mask[idx],
-                "x2": x2[idx],
-                "x2_mask": x2_mask[idx],
-            }
-            if not self.test:
-                sample["score"] = dataframe.iloc[idx].scores
-            self.samples.append(sample)
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, item):
-        base_item = (
-            self.samples["x1"],
-            self.samples["x1_mask"],
-            self.samples["x2"],
-            self.samples["x2_mask"],
-        )
-        if self.test:
-            return base_item
-        return (*base_item, self.samples["score"])
+from tokenizer import FullTokenizer
 
 
 class EncoderRNN(nn.Module):

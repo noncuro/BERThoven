@@ -2,25 +2,17 @@ import json
 import os
 import sys
 import zipfile
-from functools import partial
 
 import requests
 import torch
 import torch.nn.functional as F
 
-from transformers import (
-    AdamW,
-    get_constant_schedule_with_warmup,
-    get_linear_schedule_with_warmup,
-)
-from utils import (
-    BERThoven,
-    augment_dataset,
-    getDataLoader,
-    getDataLoader_masked,
-    import_file,
-    train_part,
-)
+from BERT_utils import get_data_loader, get_data_loader_masked
+from BERThoven_model import BERThoven
+from train_BERT import train_part
+from transformers import (AdamW, get_constant_schedule_with_warmup,
+                          get_linear_schedule_with_warmup)
+from utils import augment_dataset, import_file
 
 
 def exp_to_string(experiment):
@@ -113,17 +105,17 @@ class ExperimentRunner:
             lambda score: score > 1.3,
         )
 
-        self.dataLoader_train = getDataLoader(train_df, batch_size=32)
-        self.dataLoader_train_aug = getDataLoader(train_df_aug, batch_size=32)
-        self.dataLoader_dev = getDataLoader(dev_df, batch_size=32)
-        self.dataLoader_test = getDataLoader(test_df, batch_size=32, test=True)
+        self.dataLoader_train = get_data_loader(train_df, batch_size=32)
+        self.dataLoader_train_aug = get_data_loader(train_df_aug, batch_size=32)
+        self.dataLoader_dev = get_data_loader(dev_df, batch_size=32)
+        self.dataLoader_test = get_data_loader(test_df, batch_size=32, test=True)
 
         # Masked versions of the dataset (load both into memory to avoid recalculation)
-        self.dataLoader_train_masked = getDataLoader_masked(train_df, batch_size=32)
-        self.dataLoader_train_aug_masked = getDataLoader_masked(
+        self.dataLoader_train_masked = get_data_loader_masked(train_df, batch_size=32)
+        self.dataLoader_train_aug_masked = get_data_loader_masked(
             train_df_aug, batch_size=32
         )
-        self.dataLoader_dev_masked = getDataLoader_masked(dev_df, batch_size=32)
+        self.dataLoader_dev_masked = get_data_loader_masked(dev_df, batch_size=32)
 
     def reload_experiments(self):
         if not os.path.isfile(self.experiments_file):

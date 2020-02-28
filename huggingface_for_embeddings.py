@@ -22,14 +22,8 @@ import torch.nn.functional as F
 from IPython.display import HTML, display
 from torch import nn
 
-from transformers import (
-    AdamW,
-    AutoModel,
-    AutoTokenizer,
-    BertModel,
-    BertTokenizer,
-    get_linear_schedule_with_warmup,
-)
+from transformers import (AdamW, AutoModel, AutoTokenizer, BertModel,
+                          BertTokenizer, get_linear_schedule_with_warmup)
 
 tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
 bert_model = AutoModel.from_pretrained("bert-base-multilingual-cased")

@@ -17,7 +17,7 @@ class EncoderRNN(nn.Module):
     def forward(self, _input, hidden):
         embedded = self.embedding(_input).view(1, _input.shape[0], -1)
         output = embedded
-        output, hidden = self.gru(output, hidden)
+        output, hidden = self.gru(output, hidden, bidirectionnal=False)
         return output, hidden
 
     def init_hidden(self, batch_size):
@@ -36,15 +36,9 @@ class AttnDecoderRNN(nn.Module):
         self.dropout_p = dropout_p  # Dropout probability
         self.max_length = max_length  # Maximum length of a sentence
 
-        self.embedding = nn.Embedding(
-            self.vocab_size, self.hidden_size
-        )  # Embedding layer
-        self.attn = nn.Linear(
-            self.hidden_size * 2, self.max_length
-        )  # Attention generation layer
-        self.attn_combine = nn.Linear(
-            self.hidden_size * 2, self.hidden_size
-        )  # Attention downscaling layer
+        self.embedding = nn.Embedding(self.vocab_size, self.hidden_size)  # Embedding layer
+        self.attn = nn.Linear(self.hidden_size * 2, self.max_length)  # Attention generation layer
+        self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)  # Attention downscaling layer
         self.dropout = nn.Dropout(self.dropout_p)  # Dropout layer
         self.gru = nn.LSTM(self.hidden_size, self.hidden_size)  # Recurrent layer
         self.out = nn.Linear(self.hidden_size, 1)  # Final output generation layer
@@ -57,12 +51,8 @@ class AttnDecoderRNN(nn.Module):
         embedded = self.embedding(_input).view(1, _input.shape[0], -1)
         embedded = self.dropout(embedded)
 
-        attn_weights = F.softmax(
-            self.attn(torch.cat((embedded[0], hidden[0]), 1)), dim=1
-        )
-        attn_applied = torch.bmm(
-            attn_weights.unsqueeze(0), encoder_outputs.unsqueeze(0)
-        )
+        attn_weights = F.softmax(self.attn(torch.cat((embedded[0], hidden[0]), 1)), dim=1)
+        attn_applied = torch.bmm(attn_weights.unsqueeze(0), encoder_outputs.unsqueeze(0))
 
         output = torch.cat((embedded[0], attn_applied[0]), 1)
         output = self.attn_combine(output).unsqueeze(0)

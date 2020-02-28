@@ -1,11 +1,11 @@
 import torch
 
-import comparer_model
+from . import comparer_model
 import utils
-from train_bilstm import Tokenizer, TrainerBiLSTM, get_data_loader_bilstm
+from .train_bilstm import Tokenizer, TrainerBiLSTM, get_data_loader_bilstm
 
 
-def train_bilstm():
+def train_model():
     use_gpu = True
 
     if use_gpu and torch.cuda.is_available():

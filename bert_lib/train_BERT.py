@@ -12,6 +12,17 @@ from utils import smoothing
 
 
 def check_accuracy(loader, model, device, max_sample_size=None, preprocessor=None):
+    """
+    Check the accuracy over a validation dataset. This is used during training
+    to check if the model is overfitting.
+    loader: pytorch Dataloader used to check the accuracy
+    model: BERThoven model on which the accuracy is checked
+    device: GPU or CPU
+    max_sample_size: maximum length of a sentence
+    preprocessor: sklearn.preprocessing method. If the model is trained with 
+    preprocessing, the same preprocessor should be added
+    """
+
     model = model.to(device=device)
     num_samples = 0
     model.eval()  # set model to evaluation mode
@@ -22,9 +33,7 @@ def check_accuracy(loader, model, device, max_sample_size=None, preprocessor=Non
         scores_epoch = []
         truth_epoch = []
 
-        for x1, x1_mask, x2, x2_mask, y in tqdm(
-            loader, "Checking accuracy", leave=False
-        ):
+        for x1, x1_mask, x2, x2_mask, y in tqdm(loader, "Checking accuracy", leave=False):
             truth_epoch += y.tolist()
             x1 = x1.to(device=device, dtype=torch.long)
             x1_mask = x1_mask.to(device=device, dtype=torch.long)
@@ -49,10 +58,7 @@ def check_accuracy(loader, model, device, max_sample_size=None, preprocessor=Non
         mae = abs_error / num_samples
         pr, _ = scipy.stats.pearsonr(scores_epoch, truth_epoch)
 
-        print(
-            "Mean Absolute Error: %.3f, Root Mean Squared Error %.3f, Pearson: %.3f"
-            % (rmse, mae, pr)
-        )
+        print("Mean Absolute Error: %.3f, Root Mean Squared Error %.3f, Pearson: %.3f" % (rmse, mae, pr))
     return rmse, mae, pr
 
 
@@ -72,7 +78,24 @@ def train_part(
     return_losses=False,
     preprocessor: QuantileTransformer = None,
 ):
-    # see F.smooth_l1_loss
+    """
+    Train a BERTHoven model
+    model: Instance of BERThoven model
+    dataloader: pytorch Dataloader on which the model should be trained
+    optimizer: pytorch Optimizer
+    scheduler: pytorch scheduler
+    val_loader: pytorch Dataloader on which the model accuracy is checked
+    device: GPU or CPU
+    epoch: number of epochs
+    max_grad_norm: Clipping
+    print_every: Controls the verbosity of training
+    loss_function: Loss function used to backpropagate the gradients
+    return_metrics: if True, returns the accuracy
+    val_every: Controls the verobosity of accuracy
+    return_losses: if True, returns the losses
+    preprocessor: sklearn.preprocessing method, preprocess the scores according
+    to the methods passed as input
+    """
 
     avg_loss = None
     avg_val_loss = None
@@ -85,9 +108,7 @@ def train_part(
     for e in range(epochs):
         print(f"Iterations per epoch:{len(dataloader)}")
         time.sleep(0.1)
-        for t, (x1, x1_mask, x2, x2_mask, y) in tqdm(
-            enumerate(dataloader), total=len(dataloader)
-        ):
+        for t, (x1, x1_mask, x2, x2_mask, y) in tqdm(enumerate(dataloader), total=len(dataloader)):
             model.train()  # put model to training mode
             x1 = x1.to(device=device, dtype=torch.long)
             x1_mask = x1_mask.to(device=device, dtype=torch.long)
@@ -147,11 +168,7 @@ def train_part(
                         end="\t",
                     )
                 else:
-                    print(
-                        "Epoch: %d,\tIteration %d,\tMoving avg loss = %.4f"
-                        % (e, t, avg_loss),
-                        end="\t",
-                    )
+                    print("Epoch: %d,\tIteration %d,\tMoving avg loss = %.4f" % (e, t, avg_loss), end="\t")
             # print(".", end="")
         print()
         print("Checking accuracy on dev:")
@@ -159,9 +176,7 @@ def train_part(
         # print("Saving the model.")
         # torch.save(model.state_dict(), 'nlp_model.pt')
     if return_metrics:
-        return check_accuracy(
-            val_loader, model, device=device, preprocessor=preprocessor
-        )
+        return check_accuracy(val_loader, model, device=device, preprocessor=preprocessor)
     if return_losses:
         px, py = smoothing(t_losses, 30)
         plt.plot(epochs * px, py, label="Training loss")
@@ -173,6 +188,15 @@ def train_part(
 
 
 def get_test_labels(loader, model, device, preprocessor=None):
+    """
+    Returns the score given by a trained model on a test set.
+    loader: pytorch Dataloader on which the model should predict the scores
+    model: BERThoven model
+    device: GPU or CPU
+    preprocessor: sklearn.preprocessing method. If the model is trained with 
+    preprocessing, the same preprocessor should be added
+
+    """
     model = model.to(device=device)
     model.eval()  # set model to evaluation mode
     all_scores = []
@@ -191,6 +215,10 @@ def get_test_labels(loader, model, device, preprocessor=None):
 
 
 def writeScores(scores):
+    """
+    Write the scores to a file
+    scores: numpy array, scores to be saved
+    """
     fn = "predictions.txt"
     print("")
     with open(fn, "w") as output_file:

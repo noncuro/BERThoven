@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch import optim
 from torch.utils.data import Dataset
 
-from tokenizer import FullTokenizer
+from .tokenizer import FullTokenizer
 from utils import pad, prepro_df
 
 
@@ -50,15 +50,7 @@ class TrainerBiLSTM:
     """Class responsible for training the Bi-LSTM architecture
     """
 
-    def __init__(
-        self,
-        encoder,
-        decoder,
-        batch_size,
-        device,
-        max_length,
-        loss_function=nn.MSELoss(),
-    ):
+    def __init__(self, encoder, decoder, batch_size, device, max_length, loss_function=nn.MSELoss()):
         """
         encoder: EncoderRNN type object. The encoder model to train
         decoder: AttnDecoderRNN type object. The decoder model to train
@@ -73,9 +65,7 @@ class TrainerBiLSTM:
         self.decoder = decoder.to(device)
         self.loss_function = loss_function
 
-    def train_once(
-        self, src_tensor, mt_tensor, score, encoder_optimizer, decoder_optimizer
-    ):
+    def train_once(self, src_tensor, mt_tensor, score, encoder_optimizer, decoder_optimizer):
         """Trains the models with one batch
         src_tensor: torch.Tensor representing indices of the words in the source language
         mt_tensor: torch.Tensor representing indices of the words in the translated language
@@ -85,22 +75,16 @@ class TrainerBiLSTM:
         """
         self.encoder.train()  # Set encoder to training mode
         self.decoder.train()  # Set decoder to training mode
-        encoder_hidden = self.encoder.init_hidden(
-            src_tensor.shape[1]
-        )  # Set the encoder's initial state
+        encoder_hidden = self.encoder.init_hidden(src_tensor.shape[1])  # Set the encoder's initial state
 
         encoder_optimizer.zero_grad()  # Clean any extraneous gradients left for the encoder
         decoder_optimizer.zero_grad()  # Clean any extraneous gradients left for the decoder
 
-        src_length = src_tensor.size(
-            0
-        )  # Length of the sentences in the src_tensor batch
+        src_length = src_tensor.size(0)  # Length of the sentences in the src_tensor batch
         mt_length = mt_tensor.size(0)  # Length of the sentences in the mt_tensor batch
 
         # Prepare a matrix to hold the encoder outputs (they'll be used in the attention mechanism)
-        encoder_outputs = torch.zeros(
-            self.max_length, self.encoder.hidden_size, device=self.device
-        )
+        encoder_outputs = torch.zeros(self.max_length, self.encoder.hidden_size, device=self.device)
 
         # Iterate through every token in the source sentences batch
         for i in range(src_length):
@@ -150,9 +134,7 @@ class TrainerBiLSTM:
                 mt = mt.to(device=self.device, dtype=torch.long).T
                 score = score.to(device=self.device, dtype=torch.float)
 
-                loss = self.train_once(
-                    src, mt, score, encoder_optimizer, decoder_optimizer
-                )
+                loss = self.train_once(src, mt, score, encoder_optimizer, decoder_optimizer)
                 print_loss_total += loss
 
             print_loss_avg = print_loss_total / i
@@ -167,14 +149,10 @@ class TrainerBiLSTM:
             src_length = src_tensor.size(0)
             mt_length = mt_tensor.size(0)
 
-            encoder_outputs = torch.zeros(
-                self.max_length, self.encoder.hidden_size, device=self.device
-            )
+            encoder_outputs = torch.zeros(self.max_length, self.encoder.hidden_size, device=self.device)
 
             for i in range(src_length):
-                encoder_output, encoder_hidden = self.encoder(
-                    src_tensor[i], encoder_hidden
-                )
+                encoder_output, encoder_hidden = self.encoder(src_tensor[i], encoder_hidden)
                 encoder_outputs[i] = encoder_output[0, 0]
 
             decoder_hidden = encoder_hidden
@@ -201,9 +179,7 @@ def get_tokenized_one_way(dataframe, _tokenizer):
     return input1, input2
 
 
-def get_data_loader_bilstm(
-    dataframe, _tokenizer, batch_size=32, test=False, preprocessor=None, fit=False
-):
+def get_data_loader_bilstm(dataframe, _tokenizer, batch_size=32, test=False, preprocessor=None, fit=False):
     dataframe = prepro_df(dataframe, preprocessor, fit)
     ds = BiLSTMDataset(dataframe, _tokenizer, test=test)
     return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(not test))

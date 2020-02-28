@@ -1,12 +1,13 @@
 # BERThoven
 
-In this repository, you will find the implementation of our different models that predicts the quality of translation between English and German. 
-The dataset used to train these models constructed this way:
+In this repository, you will find the implementation of our different models that predicts the quality of translation 
+between English and German. 
+The dataset used to train these models contains three columns:
 - src : Source document
 - mt  : Machine translation
-- scores : z-standardised score of three anotator's raw scores
+- scores : z-standardised score of three annotators raw scores
 
-The model outputs for each tupe (src, mt) a z-score
+The model outputs for each tuple (src, mt) a z-score
 
 ---
 

@@ -1,19 +1,11 @@
 import os
-import time
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
 from tqdm import tqdm_notebook as tqdm
-from transformers import (
-    AdamW,
-    AutoModel,
-    AutoTokenizer,
-    BertModel,
-    BertTokenizer,
-    get_linear_schedule_with_warmup,
-)
+from transformers import AutoModel
 from utils import add_mask, pad, prepro_df
 
 # Tokenizer from pretrained model

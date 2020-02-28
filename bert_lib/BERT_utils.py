@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset
 
 from tqdm import tqdm_notebook as tqdm
-from transformers import AutoModel
+from transformers import AutoModel, AutoTokenizer
 from utils import add_mask, pad, prepro_df
 
 # Tokenizer from pretrained model

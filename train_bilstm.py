@@ -84,28 +84,29 @@ class TrainerBiLSTM:
         # Return the normalized loss for logging purposes
         return loss.item() / mt_length
 
-    def train(self, epochs, print_every=1000, learning_rate=0.01):
-        print_loss_total = 0  # Reset every print_every
+    def train(self, dataloader, epochs, learning_rate=0.01):
+        print_loss_total = 0  # Reset loss count for logging purposes
 
+        # Define the encoder optimizer
         encoder_optimizer = optim.Adam(self.encoder.parameters(), lr=learning_rate)
+
+        # Define the decoder optimizer
         decoder_optimizer = optim.Adam(self.decoder.parameters(), lr=learning_rate)
-        training_pairs = [tensorsFromPair(random.choice(pairs)) for i in range(epochs)]
 
-        for iter in range(1, epochs + 1):
-            training_pair = training_pairs[iter - 1]
-            src_tensor = training_pair[0]
-            mt_tensor = training_pair[1]
-            score = training_pair[2]
+        for e in range(epochs):
+            for i, (src, mt, score) in enumerate(dataloader):
+                src = src.to(device=self.device, dtype=torch.long)
+                mt = mt.to(device=self.device, dtype=torch.long)
+                score = score.to(device=self.device, dtype=torch.long)
 
-            loss = self.train_once(
-                src_tensor, mt_tensor, score, encoder_optimizer, decoder_optimizer
-            )
-            print_loss_total += loss
+                loss = self.train_once(
+                    src, mt, score, encoder_optimizer, decoder_optimizer
+                )
+                print_loss_total += loss
 
-            if iter % print_every == 0:
-                print_loss_avg = print_loss_total / print_every
-                print_loss_total = 0
-                print(f"epoch {iter} / {epochs} => {print_loss_avg}")
+            print_loss_avg = print_loss_total / i
+            print_loss_total = 0
+            print(f"epoch {e} / {epochs} => {print_loss_avg}")
 
     def predict(self, src_tensor, mt_tensor):
         self.encoder.eval()

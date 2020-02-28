@@ -5,7 +5,6 @@ import numpy as np
 import scipy
 import torch
 import torch.nn.functional as F
-from sklearn.preprocessing import QuantileTransformer
 
 from tqdm import tqdm_notebook as tqdm
 from utils import smoothing
@@ -70,7 +69,7 @@ def train_part(
     return_metrics=True,
     val_every=None,
     return_losses=False,
-    preprocessor: QuantileTransformer = None,
+    preprocessor = None,
 ):
     # see F.smooth_l1_loss
 

@@ -11,6 +11,7 @@ if use_gpu and torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 
+print("")
 train_df = utils.import_file("train")
 dev_df = utils.import_file("dev")
 test_df = utils.import_file("test")
@@ -36,5 +37,5 @@ decoder = comparer_model.AttnDecoderRNN(
     tokenizer.vocab_size, hidden_size, max_length, dropout_p=dropout_p
 )
 
-trainer = TrainerBiLSTM(encoder, decoder, device, max_length)
+trainer = TrainerBiLSTM(encoder, decoder, batch_size, device, max_length)
 trainer.train(dataloader_train, epochs)

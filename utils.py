@@ -180,7 +180,6 @@ def import_train_dev(test_size=1 / 8):
 def pad(id_sequences):
     max_length = max([len(s) for s in id_sequences])
     padded_data = np.zeros((len(id_sequences), max_length))
-    print(padded_data.shape)
     mask = np.zeros_like(padded_data)
     for i, sample in enumerate(id_sequences):
         padded_data[i, : len(sample)] = sample

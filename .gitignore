@@ -127,3 +127,6 @@ dmypy.json
 
 # Project
 .idea
+*.mt
+*.src
+*.scores

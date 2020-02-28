@@ -8,7 +8,10 @@ from torch import optim
 class TrainerBiLSTM:
     """Class responsible for training the Bi-LSTM architecture
     """
-    def __init__(self, encoder, decoder, device, max_length, loss_function=nn.MSELoss()):
+
+    def __init__(
+        self, encoder, decoder, device, max_length, loss_function=nn.MSELoss()
+    ):
         """
         encoder: EncoderRNN type object. The encoder model to train
         decoder: AttnDecoderRNN type object. The decoder model to train
@@ -23,12 +26,7 @@ class TrainerBiLSTM:
         self.loss_function = loss_function
 
     def train_once(
-        self,
-        src_tensor,
-        mt_tensor,
-        score,
-        encoder_optimizer,
-        decoder_optimizer,
+        self, src_tensor, mt_tensor, score, encoder_optimizer, decoder_optimizer
     ):
         """Trains the models with one batch
         src_tensor: torch.Tensor representing indices of the words in the source language
@@ -37,15 +35,17 @@ class TrainerBiLSTM:
         encoder_optimizer: The optimizer used to update the encoder's weights
         decoder_optimizer: The optimizer used to update the decoder's weights
         """
-        self.encoder.train() # Set encoder to training mode
-        self.decoder.train()# Set decoder to training mode
-        encoder_hidden = self.encoder.init_hidden() # Set the encoder's initial state
+        self.encoder.train()  # Set encoder to training mode
+        self.decoder.train()  # Set decoder to training mode
+        encoder_hidden = self.encoder.init_hidden()  # Set the encoder's initial state
 
-        encoder_optimizer.zero_grad() # Clean any extraneous gradients left for the encoder
-        decoder_optimizer.zero_grad() # Clean any extraneous gradients left for the decoder
+        encoder_optimizer.zero_grad()  # Clean any extraneous gradients left for the encoder
+        decoder_optimizer.zero_grad()  # Clean any extraneous gradients left for the decoder
 
-        src_length = src_tensor.size(0) # Length of the sentences in the src_tensor batch
-        mt_length = mt_tensor.size(0)# Length of the sentences in the mt_tensor batch
+        src_length = src_tensor.size(
+            0
+        )  # Length of the sentences in the src_tensor batch
+        mt_length = mt_tensor.size(0)  # Length of the sentences in the mt_tensor batch
 
         # Prepare a matrix to hold the encoder outputs (they'll be used in the attention mechanism)
         encoder_outputs = torch.zeros(
@@ -84,9 +84,7 @@ class TrainerBiLSTM:
         # Return the normalized loss for logging purposes
         return loss.item() / mt_length
 
-    def train(
-        self, epochs, print_every=1000, learning_rate=0.01
-    ):
+    def train(self, epochs, print_every=1000, learning_rate=0.01):
         print_loss_total = 0  # Reset every print_every
 
         encoder_optimizer = optim.Adam(self.encoder.parameters(), lr=learning_rate)
@@ -100,11 +98,7 @@ class TrainerBiLSTM:
             score = training_pair[2]
 
             loss = self.train_once(
-                src_tensor,
-                mt_tensor,
-                score,
-                encoder_optimizer,
-                decoder_optimizer
+                src_tensor, mt_tensor, score, encoder_optimizer, decoder_optimizer
             )
             print_loss_total += loss
 
@@ -113,11 +107,7 @@ class TrainerBiLSTM:
                 print_loss_total = 0
                 print(f"epoch {iter} / {epochs} => {print_loss_avg}")
 
-    def predict(
-        self,
-        src_tensor,
-        mt_tensor
-    ):
+    def predict(self, src_tensor, mt_tensor):
         self.encoder.eval()
         self.decoder.eval()
         with torch.no_grad():
@@ -130,7 +120,9 @@ class TrainerBiLSTM:
             )
 
             for i in range(src_length):
-                encoder_output, encoder_hidden = self.encoder(src_tensor[i], encoder_hidden)
+                encoder_output, encoder_hidden = self.encoder(
+                    src_tensor[i], encoder_hidden
+                )
                 encoder_outputs[i] = encoder_output[0, 0]
 
             decoder_hidden = encoder_hidden

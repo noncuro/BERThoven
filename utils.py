@@ -115,6 +115,26 @@ class MaskedDataset(BERTHovenDataset):
         return x
 
 
+class BiLSTMDataset(Dataset):
+    def __init__(self, dataframe, test=False):
+        self.samples = []
+        self.test = test
+        src, mt = get_tokenized(dataframe)
+        x1, _ = pad(src)
+        x2, _ = pad(mt)
+        for i, _ in enumerate(tqdm(range(len(x1)), desc="Loading Data", leave=False)):
+            if self.test:
+                self.samples.append((x1[i], x2[i]))
+            else:
+                self.samples.append((x1[i], x2[i], dataframe.iloc[i].scores))
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, item):
+        return self.samples[item]
+
+
 def import_file(prefix, path="./"):
     with open(os.path.join(path, f"{prefix}.ende.src"), "r", encoding="utf-8") as f:
         src = [line.strip() for line in f]
@@ -197,6 +217,21 @@ def get_tokenized_with_mask(dataframe):
     return input1, input2
 
 
+def get_tokenized_one_way(dataframe):
+    input1 = (
+        dataframe.apply(lambda a: a.src, axis=1)
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+    )
+
+    input2 = (
+        dataframe.apply(lambda a: a.mt, axis=1)
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+    )
+    return input1, input2
+
+
 def prepro_df(dataframe, preprocessor, fit):
     if preprocessor:
         dataframe = dataframe.copy()
@@ -223,6 +258,14 @@ def get_data_loader_masked(
     return torch.utils.data.DataLoader(
         masked_df, batch_size=batch_size, shuffle=(not test)
     )
+
+
+def get_data_loader_bilstm(
+    dataframe, batch_size=32, test=False, preprocessor=None, fit=False
+):
+    dataframe = prepro_df(dataframe, preprocessor, fit)
+    ds = BiLSTMDataset(dataframe, test=test)
+    return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(not test))
 
 
 def remove_outliers(dataframe, negLimit=-3, posLimit=2):

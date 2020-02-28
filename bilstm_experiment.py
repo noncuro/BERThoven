@@ -1,14 +1,15 @@
-import comparer_model
-from train_bilstm import TrainerBiLSTM
 import torch
+
+import comparer_model
 import utils
+from train_bilstm import TrainerBiLSTM
 
 use_gpu = True
 
 if use_gpu and torch.cuda.is_available():
-    device = torch.device('cuda')
+    device = torch.device("cuda")
 else:
-    device = torch.device('cpu')
+    device = torch.device("cpu")
 
 train_df = utils.import_file("train")
 dev_df = utils.import_file("dev")
@@ -23,6 +24,9 @@ hidden_size = 128
 max_length = 200
 
 encoder = comparer_model.EncoderRNN(vocab_size, hidden_size)
-decoder = comparer_model.AttnDecoderRNN(vocab_size, hidden_size, max_length, dropout_p=0.1)
+decoder = comparer_model.AttnDecoderRNN(
+    vocab_size, hidden_size, max_length, dropout_p=0.1
+)
 
 trainer = TrainerBiLSTM(encoder, decoder, device, max_length)
+trainer.train()

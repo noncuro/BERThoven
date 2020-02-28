@@ -1,18 +1,19 @@
 import os
+import time
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy
 import torch
 import torch.nn.functional as F
-from sklearn.preprocessing import QuantileTransformer
+from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import QuantileTransformer
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-import time
-import matplotlib.pyplot as plt
+
 from tqdm import tqdm_notebook as tqdm
-from sklearn import preprocessing
 from transformers import (
     AdamW,
     AutoModel,
@@ -22,14 +23,15 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 
-
 tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")
 
 
 def get_new_bert_model():
     if not os.path.exists("bert_weights"):
         os.mkdir("bert_weights")
-        bm = AutoModel.from_pretrained("bert-base-multilingual-cased", force_download=True)
+        bm = AutoModel.from_pretrained(
+            "bert-base-multilingual-cased", force_download=True
+        )
         bm.save_pretrained("./bert_weights/")
         torch.save(bm.state_dict(), "./bert_weights/bert-base-untrained.pth")
         print("Bert Model downloaded.")
@@ -44,7 +46,10 @@ def get_new_bert_model():
 
 def is_model_new(bm: AutoModel):
     l = list(bm.parameters())
-    return l[6][13].item() == -0.11790694296360016 and l[-5][10].item() == -0.015535828657448292
+    return (
+        l[6][13].item() == -0.11790694296360016
+        and l[-5][10].item() == -0.015535828657448292
+    )
 
 
 class BERTHovenDataset(Dataset):
@@ -120,18 +125,18 @@ def import_file(prefix, path="./"):
     scores = None
     if prefix != "test":
         with open(
-                os.path.join(path, f"{prefix}.ende.scores"), "r", encoding="utf-8"
+            os.path.join(path, f"{prefix}.ende.scores"), "r", encoding="utf-8"
         ) as f:
             scores = [float(line.strip()) for line in f]
     return pd.DataFrame({"src": src, "mt": mt, "scores": scores})
 
-def import_train_dev(test_size=1/8):
+
+def import_train_dev(test_size=1 / 8):
     train_df = import_file("train")
     dev_df = import_file("dev")
     ct = pd.concat([train_df, dev_df])
 
     return train_test_split(ct, shuffle=True, test_size=test_size)
-
 
 
 def pad(id_sequences):
@@ -158,16 +163,16 @@ def get_tokenized(dataframe):
         dataframe.apply(
             lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1
         )
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
         dataframe.apply(
             lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1
         )
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
     return input1, input2
 
@@ -177,18 +182,18 @@ def get_tokenized_with_mask(dataframe):
         dataframe.apply(
             lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]", axis=1
         )
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: add_mask(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: add_mask(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
         dataframe.apply(
             lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]", axis=1
         )
-            .apply(lambda a: tokenizer.tokenize(a))
-            .apply(lambda a: add_mask(a))
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        .apply(lambda a: tokenizer.tokenize(a))
+        .apply(lambda a: add_mask(a))
+        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     return input1, input2
@@ -212,7 +217,9 @@ def get_data_loader(dataframe, batch_size=32, test=False, preprocessor=None, fit
     return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(not test))
 
 
-def get_data_loader_masked(dataframe, batch_size=32, test=False, preprocessor=None, fit=False):
+def get_data_loader_masked(
+    dataframe, batch_size=32, test=False, preprocessor=None, fit=False
+):
     dataframe = prepro_df(dataframe, preprocessor, fit)
     masked_df = MaskedDataset(dataframe)
     return torch.utils.data.DataLoader(
@@ -268,12 +275,12 @@ class BERThoven(nn.Module):
     """
 
     def __init__(
-            self,
-            sum_outputs=False,
-            concat_outputs=False,
-            cls=False,
-            dropout=True,
-            dropout_prob=0.5,
+        self,
+        sum_outputs=False,
+        concat_outputs=False,
+        cls=False,
+        dropout=True,
+        dropout_prob=0.5,
     ):
         super(BERThoven, self).__init__()
         if sum_outputs and concat_outputs:
@@ -326,7 +333,9 @@ def check_accuracy(loader, model, device, max_sample_size=None, preprocessor=Non
         scores_epoch = []
         truth_epoch = []
 
-        for x1, x1_mask, x2, x2_mask, y in tqdm(loader, "Checking accuracy", leave=False):
+        for x1, x1_mask, x2, x2_mask, y in tqdm(
+            loader, "Checking accuracy", leave=False
+        ):
             truth_epoch += y.tolist()
             x1 = x1.to(device=device, dtype=torch.long)
             x1_mask = x1_mask.to(device=device, dtype=torch.long)
@@ -361,28 +370,26 @@ def check_accuracy(loader, model, device, max_sample_size=None, preprocessor=Non
 def smoothing(l, w_size=3):
     l2 = []
     for i in range(0, len(l) - 2):
-        l2.append(
-            np.mean(l[i:i + w_size])
-        )
+        l2.append(np.mean(l[i : i + w_size]))
         x = np.linspace(0, 1, len(l2))
     return x, l2
 
 
 def train_part(
-        model,
-        dataloader,
-        optimizer,
-        scheduler,
-        val_loader,
-        device,
-        epochs=1,
-        max_grad_norm=1.0,
-        print_every=75,
-        loss_function=F.mse_loss,
-        return_metrics=True,
-        val_every=None,
-        return_losses=False,
-        preprocessor: QuantileTransformer = None
+    model,
+    dataloader,
+    optimizer,
+    scheduler,
+    val_loader,
+    device,
+    epochs=1,
+    max_grad_norm=1.0,
+    print_every=75,
+    loss_function=F.mse_loss,
+    return_metrics=True,
+    val_every=None,
+    return_losses=False,
+    preprocessor: QuantileTransformer = None,
 ):
     # see F.smooth_l1_loss
 
@@ -397,7 +404,9 @@ def train_part(
     for e in range(epochs):
         print(f"Iterations per epoch:{len(dataloader)}")
         time.sleep(0.1)
-        for t, (x1, x1_mask, x2, x2_mask, y) in tqdm(enumerate(dataloader), total=len(dataloader)):
+        for t, (x1, x1_mask, x2, x2_mask, y) in tqdm(
+            enumerate(dataloader), total=len(dataloader)
+        ):
             model.train()  # put model to training mode
             x1 = x1.to(device=device, dtype=torch.long)
             x1_mask = x1_mask.to(device=device, dtype=torch.long)
@@ -469,7 +478,9 @@ def train_part(
         # print("Saving the model.")
         # torch.save(model.state_dict(), 'nlp_model.pt')
     if return_metrics:
-        return check_accuracy(val_loader, model, device=device, preprocessor=preprocessor)
+        return check_accuracy(
+            val_loader, model, device=device, preprocessor=preprocessor
+        )
     if return_losses:
         px, py = smoothing(t_losses, 30)
         plt.plot(epochs * px, py, label="Training loss")
@@ -505,6 +516,6 @@ def get_test_labels(loader, model, device, preprocessor=None):
 def writeScores(scores):
     fn = "predictions.txt"
     print("")
-    with open(fn, 'w') as output_file:
+    with open(fn, "w") as output_file:
         for idx, x in enumerate(scores):
             output_file.write(f"{x}\n")

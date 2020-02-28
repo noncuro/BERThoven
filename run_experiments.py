@@ -8,18 +8,18 @@ import requests
 import torch
 import torch.nn.functional as F
 
-from daniel_lib import (
+from transformers import (
+    AdamW,
+    get_constant_schedule_with_warmup,
+    get_linear_schedule_with_warmup,
+)
+from utils import (
     BERThoven,
     augment_dataset,
     getDataLoader,
     getDataLoader_masked,
     import_file,
     train_part,
-)
-from transformers import (
-    AdamW,
-    get_constant_schedule_with_warmup,
-    get_linear_schedule_with_warmup,
 )
 
 

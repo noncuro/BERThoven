@@ -5,15 +5,10 @@ from torch import nn
 
 class EncoderRNN(nn.Module):
     def __init__(self, vocab_size, hidden_size):
-        print("11")
         super(EncoderRNN, self).__init__()
-        print("12")
         self.hidden_size = hidden_size
-        print("13")
         self.embedding = nn.Embedding(vocab_size, hidden_size)
-        print("14")
         self.gru = nn.GRU(hidden_size, hidden_size)
-        print("15")
 
     def forward(self, _input, hidden):
         embedded = self.embedding(_input).view(1, _input.shape[0], -1)
@@ -41,7 +36,7 @@ class AttnDecoderRNN(nn.Module):
         self.out = nn.Linear(self.hidden_size, 1)
 
     def forward(self, _input, hidden, encoder_outputs):
-        embedded = self.embedding(_input).view(1, 1, -1)
+        embedded = self.embedding(_input).view(1, _input.shape[0], -1)
         embedded = self.dropout(embedded)
 
         attn_weights = F.softmax(
@@ -60,5 +55,5 @@ class AttnDecoderRNN(nn.Module):
         output = self.out(output[0])
         return output, hidden, attn_weights
 
-    def init_hidden(self):
-        return torch.zeros(1, 1, self.hidden_size)
+    def init_hidden(self, batch_size):
+        return torch.zeros(1, batch_size, self.hidden_size)

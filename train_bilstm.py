@@ -66,23 +66,12 @@ class TrainerBiLSTM:
         max_length: Length of the largest sentence on the dataset
         loss_function: Loss function to use for training
         """
-        print(1)
         self.batch_size = batch_size
-        print(2)
         self.device = device
-
-        print(3)
         self.max_length = max_length
-
-        print(4)
         self.encoder = encoder.to(device)
-
-        print(5)
         self.decoder = decoder.to(device)
-
-        print(6)
         self.loss_function = loss_function
-        print(7)
 
     def train_once(
         self, src_tensor, mt_tensor, score, encoder_optimizer, decoder_optimizer
@@ -116,7 +105,6 @@ class TrainerBiLSTM:
         # Iterate through every token in the source sentences batch
         for i in range(src_length):
             # Pass the tokens through the encoder
-            print("=>", encoder_hidden.shape)
             encoder_output, encoder_hidden = self.encoder(src_tensor[i], encoder_hidden)
 
             # Store the output in the encoder_output matrix (to later use for attention)
@@ -159,7 +147,7 @@ class TrainerBiLSTM:
             for i, (src, mt, score) in enumerate(dataloader):
                 src = src.to(device=self.device, dtype=torch.long).T
                 mt = mt.to(device=self.device, dtype=torch.long).T
-                score = score.to(device=self.device, dtype=torch.long)
+                score = score.to(device=self.device, dtype=torch.float)
 
                 loss = self.train_once(
                     src, mt, score, encoder_optimizer, decoder_optimizer
@@ -174,7 +162,7 @@ class TrainerBiLSTM:
         self.encoder.eval()
         self.decoder.eval()
         with torch.no_grad():
-            encoder_hidden = self.encoder.init_hidden()
+            encoder_hidden = self.encoder.init_hidden(src_tensor.shape[0])
             src_length = src_tensor.size(0)
             mt_length = mt_tensor.size(0)
 

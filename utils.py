@@ -142,21 +142,17 @@ class Tokenizer:
             self.vocab_size = len(f.readlines())
         self.tk = FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
 
-    @property
-    def vocab_size(self):
-        return self.vocab_size
-
-    def tokenize_single(self, text):
+    def tokenize(self, text):
         return self.tk.tokenize(text)
 
-    def tokenize(self, texts):
-        return [self.tokenize_single(text) for text in texts]
+    def batch_tokenize(self, texts):
+        return [self.tokenize(text) for text in texts]
 
-    def convert_to_ids_single(self, tokens):
+    def convert_tokens_to_ids(self, tokens):
         return self.tk.convert_tokens_to_ids(tokens)
 
-    def convert_to_ids(self, texts):
-        return [self.convert_to_ids(tokens) for tokens in texts]
+    def batch_convert_tokens_to_ids(self, texts):
+        return [self.convert_tokens_to_ids(tokens) for tokens in texts]
 
 
 def import_file(prefix, path="./"):
@@ -184,6 +180,7 @@ def import_train_dev(test_size=1 / 8):
 def pad(id_sequences):
     max_length = max([len(s) for s in id_sequences])
     padded_data = np.zeros((len(id_sequences), max_length))
+    print(padded_data.shape)
     mask = np.zeros_like(padded_data)
     for i, sample in enumerate(id_sequences):
         padded_data[i, : len(sample)] = sample

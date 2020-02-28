@@ -12,7 +12,7 @@ class EncoderRNN(nn.Module):
         super(EncoderRNN, self).__init__()
         self.hidden_size = hidden_size  # Dimensions of the hidden state (memory vector)
         self.embedding = nn.Embedding(vocab_size, hidden_size)  # Embedding layer
-        self.gru = nn.GRU(hidden_size, hidden_size)  # Recurrent layer
+        self.gru = nn.LSTM(hidden_size, hidden_size)  # Recurrent layer
 
     def forward(self, _input, hidden):
         embedded = self.embedding(_input).view(1, _input.shape[0], -1)
@@ -46,7 +46,7 @@ class AttnDecoderRNN(nn.Module):
             self.hidden_size * 2, self.hidden_size
         )  # Attention downscaling layer
         self.dropout = nn.Dropout(self.dropout_p)  # Dropout layer
-        self.gru = nn.GRU(self.hidden_size, self.hidden_size)  # Recurrent layer
+        self.gru = nn.LSTM(self.hidden_size, self.hidden_size)  # Recurrent layer
         self.out = nn.Linear(self.hidden_size, 1)  # Final output generation layer
 
     def forward(self, _input, hidden, encoder_outputs):

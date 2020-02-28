@@ -40,8 +40,10 @@ def get_new_bert_model():
         bm = AutoModel.from_pretrained("./bert_weights/")
         bm.load_state_dict(torch.load("./bert_weights/bert-base-untrained.pth"))
         print("Loaded pre-trained Bert weights.")
+
+    # In experimentation, we found that sometimes the BERT model would be reused between experiments.
+    # We add this assertion just to be sure that doesn't happen.
     assert is_model_new(bm)
-    time.sleep(0.1)
     return bm
 
 
@@ -195,40 +197,6 @@ def get_tokenized(dataframe):
     return input1, input2
 
 
-def get_tokenized_with_mask(dataframe):
-    """Performs tokenization, masking and index substitution on a dataframe
-    This function concatenates the sentences in both ways, appending a
-    [SEP] token after each one.
-    After that it applies random masking to the previous result.
-    Finally the tokens are substituted for their indices
-
-    dataframe: pandas.DataFrame object containing the dataset
-    """
-    input1 = (
-        dataframe.apply(
-            # Source language followed by translation
-            lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]",
-            axis=1,
-        )
-            .apply(lambda a: tokenizer.tokenize(a))  # Tokenize
-            .apply(lambda a: add_mask(a))  # Random masking
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))  # Index substitution
-    )
-
-    input2 = (
-        dataframe.apply(
-            # Translation followed by source language
-            lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]",
-            axis=1,
-        )
-            .apply(lambda a: tokenizer.tokenize(a))  # Tokenize
-            .apply(lambda a: add_mask(a))  # Random masking
-            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))  # Index substitution
-    )
-
-    return input1, input2
-
-
 def get_data_loader(dataframe, batch_size=32, test=False, preprocessor=None, fit=False):
     """Returns a Torch DataLoader object containing the dataset
     dataframe: pandas.DataFrame object containing the dataset
@@ -238,6 +206,7 @@ def get_data_loader(dataframe, batch_size=32, test=False, preprocessor=None, fit
     fit: Boolean value describing whether or not to fit the preprocessor to the data
     """
     # Start by pre-processing the data
+    # TODO: Move outside the function
     dataframe = prepro_df(dataframe, preprocessor, fit)
 
     # Create an instance of the dataset wrapper
@@ -271,7 +240,7 @@ def get_data_loader_masked(
 
 
 def get_sentence_embeddings(dataframe, bert_model, device, test=False, batch_size=32):
-    """Returns the embeddings of a sentence according to a given BERT model
+    """Returns the embeddings of a sentence as the pooled outputs from a pretrained BERT model.
     dataframe: pandas.DataFrame object containing the dataset
     bert_model BERT model used to generate the embeddings
     device: The device to use. Either "cuda" or "cpu"

@@ -2,8 +2,6 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from tokenizer import FullTokenizer
-
 
 class EncoderRNN(nn.Module):
     def __init__(self, vocab_size, hidden_size):

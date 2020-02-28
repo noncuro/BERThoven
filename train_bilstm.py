@@ -1,8 +1,10 @@
-import time
-
 import torch
 import torch.nn as nn
 from torch import optim
+from tokenizer import FullTokenizer
+from torch.utils.data import Dataset
+from utils import pad
+from utils import prepro_df
 
 
 class Tokenizer:
@@ -31,7 +33,7 @@ class BiLSTMDataset(Dataset):
         src, mt = get_tokenized_one_way(dataframe, _tokenizer)
         x1, _ = pad(src)
         x2, _ = pad(mt)
-        for i, _ in enumerate(tqdm(range(len(x1)), desc="Loading Data", leave=False)):
+        for i, _ in enumerate(range(len(x1))):
             if self.test:
                 self.samples.append((x1[i], x2[i]))
             else:
@@ -195,7 +197,7 @@ class TrainerBiLSTM:
             return decoder_output
 
 
-def get_tokenized_one_way(dataframe, _tokenizer=tokenizer):
+def get_tokenized_one_way(dataframe, _tokenizer):
     input1 = (
         dataframe.apply(lambda a: a.src, axis=1)
         .apply(lambda a: _tokenizer.tokenize(a))

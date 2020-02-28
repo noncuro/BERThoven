@@ -2,7 +2,7 @@ import torch
 
 import comparer_model
 import utils
-from train_bilstm import TrainerBiLSTM
+from train_bilstm import TrainerBiLSTM, Tokenizer, get_data_loader_bilstm
 
 use_gpu = True
 
@@ -17,7 +17,7 @@ dev_df = utils.import_file("dev")
 test_df = utils.import_file("test")
 
 print("Building tokenizer")
-tokenizer = utils.Tokenizer()
+tokenizer = Tokenizer()
 
 batch_size = 32
 hidden_size = 128
@@ -26,15 +26,11 @@ epochs = 10
 dropout_p = 0.1
 
 print("Creating training dataloader")
-dataloader_train = utils.get_data_loader_bilstm(
-    train_df, tokenizer, batch_size=batch_size
-)
+dataloader_train = get_data_loader_bilstm(train_df, tokenizer, batch_size=batch_size)
 print("Creating dev dataloader")
-dataloader_dev = utils.get_data_loader_bilstm(dev_df, tokenizer, batch_size=batch_size)
+dataloader_dev = get_data_loader_bilstm(dev_df, tokenizer, batch_size=batch_size)
 print("Creating test dataloader")
-dataloader_test = utils.get_data_loader_bilstm(
-    test_df, tokenizer, batch_size=batch_size, test=True
-)
+dataloader_test = get_data_loader_bilstm(test_df, tokenizer, batch_size=batch_size, test=True)
 
 print("Building encoder")
 encoder = comparer_model.EncoderRNN(tokenizer.vocab_size, hidden_size)

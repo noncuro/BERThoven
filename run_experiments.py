@@ -10,8 +10,11 @@ import torch.nn.functional as F
 from BERT_utils import get_data_loader, get_data_loader_masked
 from BERThoven_model import BERThoven
 from train_BERT import train_part
-from transformers import (AdamW, get_constant_schedule_with_warmup,
-                          get_linear_schedule_with_warmup)
+from transformers import (
+    AdamW,
+    get_constant_schedule_with_warmup,
+    get_linear_schedule_with_warmup,
+)
 from utils import augment_dataset, import_file
 
 

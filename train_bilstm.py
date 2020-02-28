@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
 from torch import optim
-from tokenizer import FullTokenizer
 from torch.utils.data import Dataset
-from utils import pad
-from utils import prepro_df
+
+from tokenizer import FullTokenizer
+from utils import pad, prepro_df
 
 
 class Tokenizer:
@@ -86,7 +86,7 @@ class TrainerBiLSTM:
         self.encoder.train()  # Set encoder to training mode
         self.decoder.train()  # Set decoder to training mode
         encoder_hidden = self.encoder.init_hidden(
-            self.batch_size
+            src_tensor.shape[1]
         )  # Set the encoder's initial state
 
         encoder_optimizer.zero_grad()  # Clean any extraneous gradients left for the encoder
@@ -145,6 +145,7 @@ class TrainerBiLSTM:
 
         for e in range(epochs):
             for i, (src, mt, score) in enumerate(dataloader):
+                print(f"e = {e} / {epochs}, i = {i} / {len(dataloader)}")
                 src = src.to(device=self.device, dtype=torch.long).T
                 mt = mt.to(device=self.device, dtype=torch.long).T
                 score = score.to(device=self.device, dtype=torch.float)

@@ -6,8 +6,14 @@ import torch
 from torch.utils.data import Dataset
 
 from tqdm import tqdm_notebook as tqdm
-from transformers import (AdamW, AutoModel, AutoTokenizer, BertModel,
-                          BertTokenizer, get_linear_schedule_with_warmup)
+from transformers import (
+    AdamW,
+    AutoModel,
+    AutoTokenizer,
+    BertModel,
+    BertTokenizer,
+    get_linear_schedule_with_warmup,
+)
 from utils import add_mask, pad, prepro_df
 
 tokenizer = AutoTokenizer.from_pretrained("bert-base-multilingual-cased")

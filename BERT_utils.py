@@ -53,13 +53,13 @@ def is_model_new(bm: AutoModel):
     # Check two arbitrary weights for equality
     # We simply check two weights for computational efficiency
     return (
-        l[6][13].item() == -0.11790694296360016
-        and l[-5][10].item() == -0.015535828657448292
+            l[6][13].item() == -0.11790694296360016
+            and l[-5][10].item() == -0.015535828657448292
     )
 
 
 class BERTHovenDataset(Dataset):
-    """Class responsible of handling pre-processing of data handed to BERT
+    """Class responsible of handling pre-processing of data handed to BERT, for use within a dataloader
     """
 
     def __init__(self, dataframe, test=False):
@@ -111,16 +111,16 @@ class BERTHovenDataset(Dataset):
 
 
 class MaskedDataset(BERTHovenDataset):
-    """Class responsible of handling pre-processing of data handed to BERT.
-       This modification allows for words in the sentence to randomly be
-       replaced by [MASK] tokens.
-       This can be seen as a way to introduce noise into the system.
+    """
+    Class responsible of handling pre-processing of data handed to BERT. This modification allows for words in the
+    sentence to randomly be replaced by [MASK] tokens.
+    This can be seen as a way to introduce noise into the system, to reduce the likelihood of overfitting.
     """
 
     def __init__(self, dataframe, number_of_masks=1, test=False):
         """
         dataframe: pandas.DataFrame object containing the dataset
-        number_of_masks: Amount of words to substitute for masks in the sentence
+        number_of_masks: Number of words to substitute for masks in the sentence
         test: boolean values describing whether or not this is the test set
         """
         super().__init__(dataframe, test)
@@ -165,7 +165,7 @@ class MaskedDataset(BERTHovenDataset):
 
 
 def get_tokenized(dataframe):
-    """Performs tokenizatoin and index substitution on a dataframe
+    """Performs tokenization and index substitution on a dataframe
     This function also concatenates the sentences in both ways, appending a
     [SEP] token after each one.
 
@@ -177,10 +177,10 @@ def get_tokenized(dataframe):
             lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]",
             axis=1,
         )
-        # First we tokenize
-        .apply(lambda a: tokenizer.tokenize(a))
-        # Then we substitute indices
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+            # First we tokenize
+            .apply(lambda a: tokenizer.tokenize(a))
+            # Then we substitute indices
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
@@ -189,8 +189,8 @@ def get_tokenized(dataframe):
             lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]",
             axis=1,
         )
-        .apply(lambda a: tokenizer.tokenize(a))  # Tokenize
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))  # Substitute indices
+            .apply(lambda a: tokenizer.tokenize(a))  # Tokenize
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))  # Substitute indices
     )
     return input1, input2
 
@@ -210,9 +210,9 @@ def get_tokenized_with_mask(dataframe):
             lambda a: "[CLS] " + a.src + " [SEP] " + a.mt + " [SEP]",
             axis=1,
         )
-        .apply(lambda a: tokenizer.tokenize(a))  # Tokenize
-        .apply(lambda a: add_mask(a))  # Random masking
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))  # Index substitution
+            .apply(lambda a: tokenizer.tokenize(a))  # Tokenize
+            .apply(lambda a: add_mask(a))  # Random masking
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))  # Index substitution
     )
 
     input2 = (
@@ -221,9 +221,9 @@ def get_tokenized_with_mask(dataframe):
             lambda a: "[CLS] " + a.mt + " [SEP] " + a.src + " [SEP]",
             axis=1,
         )
-        .apply(lambda a: tokenizer.tokenize(a))  # Tokenize
-        .apply(lambda a: add_mask(a))  # Random masking
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))  # Index substitution
+            .apply(lambda a: tokenizer.tokenize(a))  # Tokenize
+            .apply(lambda a: add_mask(a))  # Random masking
+            .apply(lambda a: tokenizer.convert_tokens_to_ids(a))  # Index substitution
     )
 
     return input1, input2
@@ -248,7 +248,7 @@ def get_data_loader(dataframe, batch_size=32, test=False, preprocessor=None, fit
 
 
 def get_data_loader_masked(
-    dataframe, batch_size=32, test=False, preprocessor=None, fit=False
+        dataframe, batch_size=32, test=False, preprocessor=None, fit=False
 ):
     """Returns a Torch DataLoader object containing the dataset
     This DataLoader applies random masking to its data

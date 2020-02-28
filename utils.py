@@ -53,8 +53,6 @@ def is_model_new(bm: AutoModel):
 
 
 class BERTHovenDataset(Dataset):
-    """Dataset for image segmentation."""
-
     def __init__(self, dataframe, test=False):
         self.samples = []
         self.test = test
@@ -323,7 +321,6 @@ class BERThoven(nn.Module):
 
 def check_accuracy(loader, model, device, max_sample_size=None, preprocessor=None):
     model = model.to(device=device)
-    num_correct = 0
     num_samples = 0
     model.eval()  # set model to evaluation mode
     abs_error = 0

@@ -15,18 +15,25 @@ train_df = utils.import_file("train")
 dev_df = utils.import_file("dev")
 test_df = utils.import_file("test")
 
-dataloader_train = utils.get_data_loader_bilstm(train_df, batch_size=32)
-dataloader_dev = utils.get_data_loader_bilstm(dev_df, batch_size=32)
-dataloader_test = utils.get_data_loader_bilstm(test_df, batch_size=32, test=True)
+tokenizer = utils.Tokenizer()
 
+batch_size = 32
 hidden_size = 128
 max_length = 200
 epochs = 10
 dropout_p = 0.1
 
-encoder = comparer_model.EncoderRNN(vocab_size, hidden_size)
+dataloader_train = utils.get_data_loader_bilstm(
+    train_df, tokenizer, batch_size=batch_size
+)
+dataloader_dev = utils.get_data_loader_bilstm(dev_df, tokenizer, batch_size=batch_size)
+dataloader_test = utils.get_data_loader_bilstm(
+    test_df, tokenizer, batch_size=batch_size, test=True
+)
+
+encoder = comparer_model.EncoderRNN(tokenizer.vocab_size, hidden_size)
 decoder = comparer_model.AttnDecoderRNN(
-    vocab_size, hidden_size, max_length, dropout_p=dropout_p
+    tokenizer.vocab_size, hidden_size, max_length, dropout_p=dropout_p
 )
 
 trainer = TrainerBiLSTM(encoder, decoder, device, max_length)

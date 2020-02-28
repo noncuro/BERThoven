@@ -13,6 +13,7 @@ from sklearn.preprocessing import QuantileTransformer
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
+from tokenizer import FullTokenizer
 from tqdm import tqdm_notebook as tqdm
 from transformers import (
     AdamW,
@@ -116,10 +117,10 @@ class MaskedDataset(BERTHovenDataset):
 
 
 class BiLSTMDataset(Dataset):
-    def __init__(self, dataframe, test=False):
+    def __init__(self, dataframe, _tokenizer, test=False):
         self.samples = []
         self.test = test
-        src, mt = get_tokenized(dataframe)
+        src, mt = get_tokenized_one_way(dataframe, _tokenizer)
         x1, _ = pad(src)
         x2, _ = pad(mt)
         for i, _ in enumerate(tqdm(range(len(x1)), desc="Loading Data", leave=False)):
@@ -133,6 +134,29 @@ class BiLSTMDataset(Dataset):
 
     def __getitem__(self, item):
         return self.samples[item]
+
+
+class Tokenizer:
+    def __init__(self, vocab_file="vocab.txt", do_lower_case=True):
+        with open(vocab_file, "r", encoding="utf-8") as f:
+            self.vocab_size = len(f.readlines())
+        self.tk = FullTokenizer(vocab_file=vocab_file, do_lower_case=do_lower_case)
+
+    @property
+    def vocab_size(self):
+        return self.vocab_size
+
+    def tokenize_single(self, text):
+        return self.tk.tokenize(text)
+
+    def tokenize(self, texts):
+        return [self.tokenize_single(text) for text in texts]
+
+    def convert_to_ids_single(self, tokens):
+        return self.tk.convert_tokens_to_ids(tokens)
+
+    def convert_to_ids(self, texts):
+        return [self.convert_to_ids(tokens) for tokens in texts]
 
 
 def import_file(prefix, path="./"):
@@ -217,17 +241,17 @@ def get_tokenized_with_mask(dataframe):
     return input1, input2
 
 
-def get_tokenized_one_way(dataframe):
+def get_tokenized_one_way(dataframe, _tokenizer=tokenizer):
     input1 = (
         dataframe.apply(lambda a: a.src, axis=1)
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        .apply(lambda a: _tokenizer.tokenize(a))
+        .apply(lambda a: _tokenizer.convert_tokens_to_ids(a))
     )
 
     input2 = (
         dataframe.apply(lambda a: a.mt, axis=1)
-        .apply(lambda a: tokenizer.tokenize(a))
-        .apply(lambda a: tokenizer.convert_tokens_to_ids(a))
+        .apply(lambda a: _tokenizer.tokenize(a))
+        .apply(lambda a: _tokenizer.convert_tokens_to_ids(a))
     )
     return input1, input2
 
@@ -261,10 +285,10 @@ def get_data_loader_masked(
 
 
 def get_data_loader_bilstm(
-    dataframe, batch_size=32, test=False, preprocessor=None, fit=False
+    dataframe, _tokenizer, batch_size=32, test=False, preprocessor=None, fit=False
 ):
     dataframe = prepro_df(dataframe, preprocessor, fit)
-    ds = BiLSTMDataset(dataframe, test=test)
+    ds = BiLSTMDataset(dataframe, _tokenizer, test=test)
     return torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=(not test))
 
 

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from BERT_utils import get_new_bert_model
+from .BERT_utils import get_new_bert_model
 
 
 class BERThoven(nn.Module):
@@ -11,14 +11,7 @@ class BERThoven(nn.Module):
         cls: use the [CLS] output (instead of the pooled output)
     """
 
-    def __init__(
-        self,
-        sum_outputs=False,
-        concat_outputs=False,
-        cls=False,
-        dropout=True,
-        dropout_prob=0.5,
-    ):
+    def __init__(self, sum_outputs=False, concat_outputs=False, cls=False, dropout=True, dropout_prob=0.5):
         super(BERThoven, self).__init__()
         if sum_outputs and concat_outputs:
             raise RuntimeError("You can't both sum and concatenate outputs.")
